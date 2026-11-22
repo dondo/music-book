@@ -12,8 +12,14 @@
 <body>
   <main id="library">
     <header class="topbar">
-      <h1>Music Book</h1>
+      <h1><button id="crumb-root" type="button" class="crumb">Music Book</button><span id="crumb-folder"></span></h1>
+      <span id="folder-actions" hidden>
+        <button id="folder-rename" type="button" title="Rename folder" aria-label="Rename folder">✎</button>
+        <button id="folder-delete" type="button" title="Delete folder" aria-label="Delete folder">🗑</button>
+      </span>
       <div class="spacer"></div>
+      <button id="new-folder-btn" type="button">+ New folder</button>
+      <button id="upload-folder-btn" type="button">+ Add folder</button>
       <button id="upload-btn" type="button" class="primary">+ Add music</button>
       <button id="settings-btn" type="button" title="MIDI &amp; page-turn settings" aria-label="Settings">⚙</button>
     </header>
@@ -22,17 +28,23 @@
 
     <div id="empty" hidden>
       <p>Your library is empty.</p>
-      <p class="muted">Drop files anywhere on this page, or <button id="empty-upload" type="button" class="link">choose files</button>.<br>
+      <p class="muted">Drop files or whole folders anywhere on this page, or <button id="empty-upload" type="button" class="link">choose files</button> (or use “+ Add folder” to load a whole folder of PDFs into a new library folder).<br>
         Supported: <span id="formats"></span></p>
     </div>
 
+    <div id="empty-folder" class="muted" hidden>This folder is empty. Add music here, or use Move (or drag a piece onto the folder).</div>
+
     <ul id="grid"></ul>
+    <ol id="list" hidden></ol>
     <input id="file-input" type="file" multiple hidden>
+    <input id="folder-input" type="file" webkitdirectory multiple hidden>
   </main>
 
   <div id="viewer" hidden>
     <div class="stage"></div>
     <div class="viewer-title"></div>
+    <button class="piece-prev" type="button" title="Previous piece ( [ )" aria-label="Previous piece" hidden>⏮</button>
+    <button class="piece-next" type="button" title="Next piece ( ] )" aria-label="Next piece" hidden>⏭</button>
     <button class="close" type="button" aria-label="Close music" title="Close (Esc)">×</button>
     <div class="page-indicator"></div>
   </div>
@@ -43,6 +55,27 @@
       <button class="settings-close" type="button" aria-label="Close settings">×</button>
     </div>
     <div class="settings-body"></div>
+  </dialog>
+
+  <dialog id="move-dialog">
+    <div class="settings-head"><h2>Move to…</h2></div>
+    <div class="settings-body"><div class="move-list"></div>
+      <p><button class="move-cancel" type="button">Cancel</button></p></div>
+  </dialog>
+
+  <dialog id="dup-dialog">
+    <div class="settings-head"><h2>Already in your library</h2></div>
+    <div class="settings-body">
+      <p class="dup-summary"></p>
+      <ul class="dup-list"></ul>
+      <div class="dup-buttons">
+        <button class="dup-here primary" type="button">Add here</button>
+        <button class="dup-there" type="button">Only there</button>
+        <button class="dup-both" type="button">Both places</button>
+        <button class="dup-cancel" type="button">Cancel import</button>
+      </div>
+      <p class="muted dup-hint"><b>Add here</b> moves it here from where it is. <b>Only there</b> leaves it where it is and skips the upload. <b>Both places</b> keeps it there and also shows it here (the file is stored once). A score that is already in several places is never moved, only added here.</p>
+    </div>
   </dialog>
 
   <div id="drop-hint">Drop to add to library</div>

@@ -1,5 +1,5 @@
 // App-shell cache so Music Book opens offline. Bump VERSION when files change.
-const VERSION = 'mb-v2';
+const VERSION = 'mb-v6';
 const SHELL = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg',
   'vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',

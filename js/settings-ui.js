@@ -1,6 +1,6 @@
 (function () {
 'use strict';
-const { ACTIONS, describeSignature } = MB;
+const { ACTIONS, describeSignature, saveSettings } = MB;
 // Settings dialog: choose MIDI input devices, bind pedals/keys to page turns.
 
 
@@ -103,7 +103,17 @@ class SettingsUI {
       body.append(row);
     }
 
-    body.append(el('p', { class: 'muted' }, 'Keyboard: → ↓ Space PageDown = next, ← ↑ PageUp = previous, Esc = close. Tapping the page also turns it.'));
+    const adv = el('label', { class: 'row' });
+    const advBox = el('input', { type: 'checkbox' });
+    advBox.checked = !!this.bindings.settings.autoAdvance;
+    advBox.addEventListener('change', () => {
+      this.bindings.settings.autoAdvance = advBox.checked;
+      saveSettings(this.bindings.settings);
+    });
+    adv.append(advBox, el('span', {}, 'Page turn past the end of a piece continues into the next piece in the folder (and back from page 1 into the previous one)'));
+    body.append(adv);
+
+    body.append(el('p', { class: 'muted' }, 'Keyboard: → ↓ Space PageDown = next, ← ↑ PageUp = previous, ] = next piece, [ = previous piece, Esc = close. Tapping the page also turns it.'));
 
     // --- Live monitor ---
     body.append(el('h3', {}, 'Last MIDI message'));

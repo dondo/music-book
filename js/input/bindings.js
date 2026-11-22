@@ -11,13 +11,18 @@ const KEY = 'music-book.settings.v1';
 const ACTIONS = [
   { id: 'next', label: 'Next page' },
   { id: 'prev', label: 'Previous page' },
+  { id: 'nextPiece', label: 'Next piece in folder' },
+  { id: 'prevPiece', label: 'Previous piece in folder' },
 ];
 
 const DEFAULTS = {
+  autoAdvance: false,                      // turning past the last page continues into the next piece
   midiInputs: null,                        // null = all devices, else [deviceId...]
   midiBindings: {
     next: [{ type: 'cc', number: 64 }],    // sustain pedal
     prev: [{ type: 'cc', number: 67 }],    // soft pedal
+    nextPiece: [],                         // unbound until you Learn them
+    prevPiece: [],
   },
 };
 

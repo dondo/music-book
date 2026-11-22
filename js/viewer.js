@@ -1,24 +1,31 @@
 (function () {
 'use strict';
-const { readerById, getFile, updatePiece } = MB;
 // Full-screen page viewer: shows one page at a time, fit to the window.
 // Page turning is triggered by whoever owns the Viewer (keyboard, MIDI, taps).
-
+// `siblings` is the ordered list of pieces in the piece's folder, so you can jump piece to piece.
+const { readerById, getFile, updatePiece } = MB;
 
 class Viewer {
-  constructor(root, { onClose, onPageChange } = {}) {
+  constructor(root, { onClose, onPageChange, getOptions } = {}) {
     this.root = root;
     this.stage = root.querySelector('.stage');
     this.indicator = root.querySelector('.page-indicator');
     this.titleEl = root.querySelector('.viewer-title');
+    this.prevBtn = root.querySelector('.piece-prev');
+    this.nextBtn = root.querySelector('.piece-next');
     this.piece = null;
     this.doc = null;
     this.page = 1;
     this.token = 0;
+    this.siblings = [];
+    this.index = 0;
     this.onClose = onClose;
     this.onPageChange = onPageChange;
+    this.getOptions = getOptions;
 
     root.querySelector('.close').addEventListener('click', e => { e.stopPropagation(); this.close(); });
+    this.prevBtn.addEventListener('click', e => { e.stopPropagation(); this.prevPiece(); });
+    this.nextBtn.addEventListener('click', e => { e.stopPropagation(); this.nextPiece(); });
 
     // tap zones: left third = previous, the rest = next; horizontal swipe also turns pages
     let startX = null;
@@ -41,21 +48,60 @@ class Viewer {
   }
 
   get isOpen() { return !!this.doc; }
+  get hasNextPiece() { return this.index < this.siblings.length - 1; }
+  get hasPrevPiece() { return this.index > 0; }
 
-  async open(piece) {
+  async _load(piece) {
     const reader = readerById(piece.readerId);
     if (!reader) throw new Error(`No reader for format "${piece.readerId}"`);
-    const blob = await getFile(piece.id);
+    const blob = await getFile(piece.fileId || piece.id);
     if (!blob) throw new Error('The stored file for this piece is missing.');
-    const doc = await reader.open(blob);
+    return reader.open(blob);
+  }
+
+  async _enter(piece, doc, startPage) {
+    const old = this.doc;
     this.piece = piece;
     this.doc = doc;
-    this.page = Math.min(Math.max(1, piece.lastPage || 1), doc.pageCount);
+    const want = startPage === 'last' ? doc.pageCount : (startPage || 1);
+    this.page = Math.min(Math.max(1, want), doc.pageCount);
+    old?.destroy();
     this.titleEl.textContent = piece.title;
+    this.updateNav();
     this.root.hidden = false;
     document.body.classList.add('viewing');
     await this.render();
   }
+
+  async open(piece, siblings = [piece]) {
+    const doc = await this._load(piece);
+    this.siblings = siblings.length ? siblings : [piece];
+    this.index = Math.max(0, this.siblings.findIndex(p => p.id === piece.id));
+    await this._enter(piece, doc, piece.lastPage || 1);
+  }
+
+  async switchPiece(delta, startPage = 1) {
+    const i = this.index + delta;
+    if (!this.doc || this._switching || i < 0 || i >= this.siblings.length) return false;
+    this._switching = true;
+    try {
+      const piece = this.siblings[i];
+      const doc = await this._load(piece);
+      if (!this.doc) { doc.destroy(); return false; }      // closed while loading
+      this.index = i;
+      await this._enter(piece, doc, startPage);
+      return true;
+    } catch (e) {
+      console.error(e);
+      this.flashIndicator();
+      return false;
+    } finally {
+      this._switching = false;
+    }
+  }
+
+  nextPiece() { return this.switchPiece(1, 1); }
+  prevPiece() { return this.switchPiece(-1, 1); }
 
   close() {
     if (!this.doc) return;
@@ -63,6 +109,7 @@ class Viewer {
     this.doc.destroy();
     this.doc = null;
     this.piece = null;
+    this.siblings = [];
     this.stage.replaceChildren();
     this.root.hidden = true;
     document.body.classList.remove('viewing');
@@ -74,7 +121,17 @@ class Viewer {
 
   async goTo(n) {
     if (!this.doc) return;
-    n = Math.min(Math.max(1, n), this.doc.pageCount);
+    const autoAdvance = !!this.getOptions?.().autoAdvance;
+    if (n > this.doc.pageCount) {
+      if (autoAdvance && await this.switchPiece(1, 1)) return;
+      this.flashIndicator();
+      return;
+    }
+    if (n < 1) {
+      if (autoAdvance && await this.switchPiece(-1, 'last')) return;
+      this.flashIndicator();
+      return;
+    }
     if (n === this.page) { this.flashIndicator(); return; }
     this.page = n;
     await this.render();
@@ -98,8 +155,16 @@ class Viewer {
     this.stage.replaceChildren(canvas);                   // swap in only when ready: no blank flash
   }
 
+  updateNav() {
+    const many = this.siblings.length > 1;
+    this.prevBtn.hidden = this.nextBtn.hidden = !many;
+    this.prevBtn.disabled = !this.hasPrevPiece;
+    this.nextBtn.disabled = !this.hasNextPiece;
+  }
+
   updateIndicator() {
-    this.indicator.textContent = `${this.page} / ${this.doc.pageCount}`;
+    const many = this.siblings.length > 1;
+    this.indicator.textContent = `${this.page} / ${this.doc.pageCount}` + (many ? ` · piece ${this.index + 1} of ${this.siblings.length}` : '');
     this.flashIndicator();
   }
 
@@ -109,5 +174,6 @@ class Viewer {
     this._ind = setTimeout(() => this.indicator.classList.remove('show'), 1500);
   }
 }
+
 MB.Viewer = Viewer;
 })();
