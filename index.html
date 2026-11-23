@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#1b1d21">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/style.css?v=32">
+  <link rel="stylesheet" href="css/style.css?v=54">
 </head>
 <body>
   <main id="library">
@@ -20,7 +20,7 @@
       <div class="spacer"></div>
       <button id="empty-trash-btn" type="button" class="danger" hidden>Empty trash</button>
       <button id="new-folder-btn" type="button">+ New folder</button>
-      <button id="upload-folder-btn" type="button">+ Add folder</button>
+      <button id="upload-folder-btn" type="button" class="primary">+ Add folder</button>
       <button id="upload-btn" type="button" class="primary">+ Add music</button>
       <button id="settings-btn" type="button" title="MIDI &amp; page-turn settings" aria-label="Settings">⚙</button>
     </header>
@@ -40,6 +40,19 @@
     <ol id="list" hidden></ol>
     <input id="file-input" type="file" multiple hidden>
     <input id="folder-input" type="file" webkitdirectory multiple hidden>
+
+    <footer class="foot">
+      <div class="foot-col">
+        <h2>About</h2>
+        <p>Developed by Donald Erik Schneider</p>
+        <p>If you like it, consider buying my book as a tip: <a href="https://www.amazon.com/Houses-Sword-Flame-Book-Trilogy/dp/0578725312" target="_blank" rel="noopener">Houses of Sword and Flame</a></p>
+      </div>
+      <div class="foot-col foot-license">
+        <h2>License</h2>
+        <p><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></p>
+        <p class="foot-version">Version <span data-version>dev</span></p>
+      </div>
+    </footer>
   </main>
 
   <button id="trash-btn" type="button" title="Trash" aria-label="Trash">🗑<span class="badge" hidden></span></button>
@@ -49,11 +62,11 @@
     <div class="viewer-title"></div>
     <button class="piece-prev" type="button" title="Previous piece ( [ )" aria-label="Previous piece" hidden>⏮</button>
     <button class="piece-next" type="button" title="Next piece ( ] )" aria-label="Next piece" hidden>⏭</button>
+    <button class="extras-toggle" type="button" title="Hide headers and footers" aria-label="Hide headers and footers" aria-pressed="false" hidden><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 2.5h9l4 4v15h-13z"/><path d="M14.5 2.5v4h4"/><rect class="hf" x="8" y="7" width="4" height="2.6" rx=".4"/><rect class="hf" x="8" y="15.5" width="8" height="2.6" rx=".4"/></svg></button>
     <div class="zoom" role="group" aria-label="Zoom">
-      <button class="extras-toggle" type="button" title="Hide headers and footers ( h )" aria-pressed="false" hidden>H/F</button>
-      <button class="zoom-out" type="button" title="Smaller ( - )" aria-label="Zoom out">−</button>
-      <button class="zoom-label" type="button" title="Fit to width ( 0 )" aria-label="Fit to width"><span class="sr">100%</span></button>
-      <button class="zoom-in" type="button" title="Larger ( + )" aria-label="Zoom in">+</button>
+      <button class="zoom-out" type="button" title="Show one line less of music ( - )" aria-label="Show one line less of music">−</button>
+      <button class="zoom-label" type="button" title="Make the music as big as possible ( 0 )" aria-label="Make the music as big as possible"><span class="sr">100%</span></button>
+      <button class="zoom-in" type="button" title="Show one more line of music ( + )" aria-label="Show one more line of music">+</button>
     </div>
     <button class="close" type="button" aria-label="Close music" title="Close (Esc)">×</button>
     <div class="busy" hidden></div>
@@ -92,17 +105,18 @@
   <div id="drop-hint">Drop to add to library</div>
 
   <script src="vendor/pdfjs/pdf.min.js"></script>
-  <script src="js/namespace.js?v=32"></script>
-  <script src="js/library.js?v=32"></script>
-  <script src="js/readers/pdf-reader.js?v=32"></script>
-  <script src="js/readers/image-reader.js?v=32"></script>
-  <script src="js/readers/index.js?v=32"></script>
-  <script src="js/input/midi.js?v=32"></script>
-  <script src="js/input/bindings.js?v=32"></script>
-  <script src="js/layout.js?v=32"></script>
-  <script src="js/annotate.js?v=32"></script>
-  <script src="js/viewer.js?v=32"></script>
-  <script src="js/settings-ui.js?v=32"></script>
-  <script src="js/app.js?v=32"></script>
+  <script src="js/version.js?v=54"></script>
+  <script src="js/namespace.js?v=54"></script>
+  <script src="js/library.js?v=54"></script>
+  <script src="js/readers/pdf-reader.js?v=54"></script>
+  <script src="js/readers/image-reader.js?v=54"></script>
+  <script src="js/readers/index.js?v=54"></script>
+  <script src="js/input/midi.js?v=54"></script>
+  <script src="js/input/bindings.js?v=54"></script>
+  <script src="js/layout.js?v=54"></script>
+  <script src="js/annotate.js?v=54"></script>
+  <script src="js/viewer.js?v=54"></script>
+  <script src="js/settings-ui.js?v=54"></script>
+  <script src="js/app.js?v=54"></script>
 </body>
 </html>

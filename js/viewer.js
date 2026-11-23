@@ -10,7 +10,7 @@ const PAD = 12;               // breathing room around the music, in CSS px
 const MIN_ZOOM = 0.3;
 
 class Viewer {
-  constructor(root, { onClose, onPageChange, getOptions, onOptionChange } = {}) {
+  constructor(root, { onClose, onOpen, onAnnotate, onPageChange, getOptions, onOptionChange } = {}) {
     this.root = root;
     this.stage = root.querySelector('.stage');
     this.indicator = root.querySelector('.page-indicator');
@@ -35,6 +35,8 @@ class Viewer {
     this.index = 0;
     this.busy = false;
     this.onClose = onClose;
+    this.onOpen = onOpen;            // a piece is now showing (also after switching pieces)
+    this.onAnnotate = onAnnotate;    // annotating was turned on or off
     this.onPageChange = onPageChange;
     this.getOptions = getOptions;
     this.onOptionChange = onOptionChange;
@@ -47,8 +49,8 @@ class Viewer {
     root.querySelector('.close').addEventListener('click', e => { e.stopPropagation(); this.close(); });
     this.prevBtn.addEventListener('click', e => { e.stopPropagation(); this.prevPiece(); });
     this.nextBtn.addEventListener('click', e => { e.stopPropagation(); this.nextPiece(); });
-    root.querySelector('.zoom-in').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1.15); });
-    root.querySelector('.zoom-out').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1 / 1.15); });
+    root.querySelector('.zoom-in').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1 / 1.15); });   // + = one more line of music (smaller)
+    root.querySelector('.zoom-out').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1.15); });       // − = one line fewer (bigger)
     this.zoomLabel.addEventListener('click', e => { e.stopPropagation(); this.toggleFit(); });
     this.extrasBtn.addEventListener('click', e => { e.stopPropagation(); this.toggleExtras(); });
 
@@ -121,6 +123,7 @@ class Viewer {
     this.updateNav();
     this.root.hidden = false;
     document.body.classList.add('viewing');
+    this.onOpen?.(piece);
     this.stage.replaceChildren();
     const layout = await this._getLayout(piece, doc);
     this._setBusy(null);
@@ -133,7 +136,6 @@ class Viewer {
     this.hideExtras = !!this.getOptions?.().hideExtras;
     this.zoomBox.hidden = !layout;
     this.hasExtras = !!layout && layout.blocks.some(b => b.kind === 'header' || b.kind === 'footer');
-    this.extrasBtn.hidden = !this.hasExtras;
     this.zoom = Number(piece.zoom) > 0 ? piece.zoom : 1;
     this.zoomBack = null;
     this._repack();
@@ -180,7 +182,8 @@ class Viewer {
     const fitW = w / cw;
     const tallest = Math.max(...shown.map(b => b.y1 - b.y0));
     this.maxZoom = Math.min(1, h / (tallest * fitW));    // never wider than the page, never taller than the screen
-    this.zoom = Math.min(Math.max(this.zoom, MIN_ZOOM), this.maxZoom);
+    this.levels = this._zoomLevels(shown, fitW, h);
+    this.zoom = this._nearestLevel(Math.min(Math.max(this.zoom, MIN_ZOOM), this.maxZoom));   // zoom only takes the values in `levels`
     this.scale = fitW * this.zoom;
     this.screens = packScreens(shown, this.scale, h).map(s => s.map(k => this.vis[k]));
     let at = this.screens.findIndex(s => s.includes(anchor));
@@ -191,19 +194,45 @@ class Viewer {
     this.updateZoomLabel();
   }
 
+  // Zoom steps: one level per number of systems. Level N is the largest zoom at which any N consecutive systems (with the
+  // headers/footers between them) still fit the screen, so each step in or out adds or removes a whole system and the
+  // music is never shrunk without room for another line. Returns zooms in descending order, the first being maxZoom.
+  _zoomLevels(shown, fitW, h) {
+    const music = shown.map((b, i) => (b.kind === 'music' ? i : -1)).filter(i => i >= 0);
+    const levels = [this.maxZoom];
+    for (let n = 2; n <= music.length; n++) {
+      if (packScreens(shown, fitW * levels[levels.length - 1], h).length <= 1) break;   // everything already fits: nothing more to add
+      let worst = 0;
+      for (let a = 0; a + n <= music.length; a++) worst = Math.max(worst, shown[music[a + n - 1]].y1 - shown[music[a]].y0);
+      const z = Math.min(this.maxZoom, h / (worst * fitW));
+      if (z < MIN_ZOOM) break;
+      if (z < levels[levels.length - 1] * 0.995) levels.push(z);
+    }
+    return levels;
+  }
+  _nearestLevel(z) {
+    const L = this.levels || [z];
+    return L.reduce((m, q) => Math.abs(Math.log(q / z)) < Math.abs(Math.log(m / z)) ? q : m, L[0]);
+  }
+
   updateZoomLabel() {
     this.extrasBtn.setAttribute('aria-pressed', this.hideExtras ? 'true' : 'false');
-    this.extrasBtn.title = this.hideExtras ? 'Show headers and footers ( h )' : 'Hide headers and footers ( h )';
-    // The button shows what a click will do: "full screen" = fit to width (100%), "full page" = back to the previous zoom.
+    this.extrasBtn.title = this.hideExtras ? 'Show headers and footers' : 'Hide headers and footers';
+    this.extrasBtn.setAttribute('aria-label', this.extrasBtn.title);
+    // The icon shows how much is on screen: a single line of text in the page when several lines of music are showing,
+    // three lines of text when the music is as big as it goes (as few lines of music as possible).
+    // A click goes to the largest size, or back to the size you had before that.
     const pct = Math.round(this.zoom * 100), back = this.zoomBack != null;
-    const icon = back
-      ? '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 12.5h5M9.5 16h5"/>'
-      : '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>';
-    this.zoomLabel.innerHTML = `<svg class="ic" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg><span class="sr">${pct}%</span>`;
-    this.zoomLabel.title = back ? `Back to ${Math.round(this.zoomBack * 100)}% (now ${pct}%)` : `Fit to width ( 0 ) — now ${pct}%`;
-    this.zoomLabel.setAttribute('aria-label', back ? `Back to ${Math.round(this.zoomBack * 100)} percent` : `Fit to width, now ${pct} percent`);
-    this.root.querySelector('.zoom-in').disabled = this.zoom >= this.maxZoom - 1e-6;
-    this.root.querySelector('.zoom-out').disabled = this.zoom <= MIN_ZOOM + 1e-6;
+    const top = this.zoom >= (this.levels ? this.levels[0] : 1) - 1e-6;
+    const lines = top ? '<path d="M8.6 8.3h6.8M8.6 12h6.8M8.6 15.7h6.8"/>' : '<path d="M8.6 12h6.8"/>';
+    this.zoomLabel.innerHTML = `<svg class="ic" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 2.5h9l4 4v15h-13z"/><path d="M14.5 2.5v4h4"/>${lines}</svg><span class="sr">${pct}%</span>`;
+    const tip = back ? 'Go back to the previous size' : 'Make the music as big as possible ( 0 )';
+    this.zoomLabel.title = tip;
+    this.zoomLabel.setAttribute('aria-label', tip);
+    this.zoomLabel.disabled = !back && this.zoom >= (this.levels ? this.levels[0] : 1) - 1e-6;   // already as large as it gets
+    const lv = this.levels || [this.zoom];
+    this.root.querySelector('.zoom-in').disabled = this.zoom <= lv[lv.length - 1] + 1e-6;     // + : nothing more to add
+    this.root.querySelector('.zoom-out').disabled = this.zoom >= lv[0] - 1e-6;                // − : already as big as it goes
   }
 
   async toggleExtras() {
@@ -215,7 +244,13 @@ class Viewer {
     this._remember();
   }
 
-  async zoomBy(factor) { return this.setZoom(this.zoom * factor); }
+  // One step = one more (or one fewer) system on the screen.
+  async zoomBy(factor) {
+    const lv = this.levels || [];
+    const i = lv.indexOf(this._nearestLevel(this.zoom));
+    const j = Math.min(Math.max(i + (factor > 1 ? -1 : 1), 0), lv.length - 1);
+    return this.setZoom(lv.length ? lv[j] : this.zoom);
+  }
   async fitWidth() { return this.setZoom(1); }
 
   // Clicking the zoom label fits to width; clicking it again (with no zoom change in between) goes back to the size it was.
@@ -388,8 +423,23 @@ class Viewer {
       this.base = this.view = this.geom = null;
       this.stage.replaceChildren(canvas);
     }
+    this._placeExtras();
     for (const k of [...this.cache.keys()]) if (k < idx - 1 || k > idx + 2) this.cache.delete(k);
     this._screenCanvas(idx + 1);                           // get the next page turn ready
+  }
+
+  // The headers/footers button lives in the top-right corner of the sheet music, on the first screen only.
+  _placeExtras() {
+    const b = this.extrasBtn, el = this.view || this.stage.firstElementChild;
+    const show = !!(this.hasExtras && this.layout && this.screen === 0 && el);
+    b.hidden = !show;
+    if (!show) return;
+    const r = el.getBoundingClientRect(), rr = this.root.getBoundingClientRect(), s = 40, m = 8;
+    b.style.left = Math.max(4, Math.min(r.right - rr.left - m - s, rr.width - s - 4)) + 'px';
+    let top = r.top - rr.top + m;
+    const left = r.right - rr.left - m - s, zb = this.zoomBox.getBoundingClientRect();
+    if (!this.zoomBox.hidden && left < zb.right - rr.left && left + s > zb.left - rr.left) top = Math.max(top, zb.bottom - rr.top + 4);   // keep clear of the zoom buttons
+    b.style.top = Math.max(4, top) + 'px';
   }
 
   // Redraw the current screen: the music, then the annotations on top.

@@ -100,7 +100,12 @@ class SettingsUI {
         if (result !== null || this.dialog.open) this.render();
       });
       row.append(learn);
-      body.append(row);
+      const help = el('button', { type: 'button', class: 'help', title: a.hint, 'aria-label': 'Keyboard: ' + a.hint });
+      help.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="2.2"/><path d="M6 9.5h.01M10 9.5h.01M14 9.5h.01M18 9.5h.01M6 13.5h.01M18 13.5h.01M9 14.5h6"/></svg>';
+      const hint = el('div', { class: 'binding-hint muted', hidden: '' }, 'Keyboard: ' + a.hint);
+      help.addEventListener('click', () => { hint.hidden = !hint.hidden; });                 // tooltips don't show on touch screens
+      row.append(help);
+      body.append(row, hint);
     }
 
     const adv = el('label', { class: 'row' });
@@ -112,8 +117,6 @@ class SettingsUI {
     });
     adv.append(advBox, el('span', {}, 'Page turn past the end of a piece continues into the next piece in the folder (and back from page 1 into the previous one)'));
     body.append(adv);
-
-    body.append(el('p', { class: 'muted' }, 'Keyboard: → ↓ Space PageDown = next, ← ↑ PageUp = previous, ] or ⌘→ = next piece, [ or ⌘← = previous piece, + / - = zoom, 0 = fit to width, h = hide/show headers and footers, a = annotate (Esc/Close to leave, ⌘Z undo; while annotating F/H/N/E/M pick the tool), Esc = up one level (close music / leave folder / leave trash). Tapping the page also turns it.'));
 
     // --- Live monitor ---
     body.append(el('h3', {}, 'Last MIDI message'));

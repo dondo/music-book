@@ -3,7 +3,7 @@
 const {
   listPieces, listFolders, addPiece, addLink, addFolder, updateFolder, deleteFolder, deletePiece, updatePiece,
   trashPiece, restorePiece, trashFolder, restoreFolder, deleteFolderForever,
-  setPieceFolder, reorderPieces, requestPersistence,
+  setPieceFolder, reorderPieces, loadOrders, getMeta, putMeta, deleteMeta, requestPersistence,
   readerForFile, supportedExtensions, supportedNames,
   Viewer, MidiInput, Bindings, loadSettings, saveSettings, SettingsUI,
 } = MB;
@@ -27,8 +27,22 @@ const bindings = new Bindings(midi, settings);
 const settingsUI = new SettingsUI($('#settings'), midi, bindings);
 midi.init().then(() => { midi.setEnabled(settings.midiInputs); });
 
+// What is open is remembered, so a reload comes back to the same piece (position and zoom are kept per piece by the
+// viewer) with the annotation toolbar open or closed as it was. Closing the music clears it.
+const SESSION_KEY = 'mb-session';
+const saveSession = () => {
+  try { if (!viewer.piece) return; } catch { return; }          // (called while the viewer is still being constructed)
+  const s = { id: viewer.piece.id, annotating: !!viewer.ann.on, ann: viewer.ann.snapshot() };
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch {}
+  try { window.name = SESSION_KEY + '=' + JSON.stringify(s); } catch {}              // survives a reload of this tab even where nothing else does
+  putMeta('session', s).catch(e => console.warn('Could not remember the open piece:', e));                 // the database is the dependable place (localStorage can be unavailable on file://)
+};
+const clearSession = () => { try { localStorage.removeItem(SESSION_KEY); } catch {} try { window.name = ''; } catch {} deleteMeta('session').catch(() => {}); };
+
 const viewer = new Viewer($('#viewer'), {
-  onClose: () => refreshLibrary(),
+  onClose: () => { clearSession(); refreshLibrary(); },
+  onOpen: saveSession,
+  onAnnotate: saveSession,
   getOptions: () => ({ autoAdvance: !!settings.autoAdvance, hideExtras: !!settings.hideExtras }),
   onOptionChange: o => { Object.assign(settings, o); saveSettings(settings); },
 });
@@ -38,9 +52,6 @@ bindings.setHandler('next', () => { if (viewer.isOpen) viewer.next(); });
 bindings.setHandler('prev', () => { if (viewer.isOpen) viewer.prev(); });
 bindings.setHandler('nextPiece', () => { if (viewer.isOpen) viewer.nextPiece(); });
 bindings.setHandler('prevPiece', () => { if (viewer.isOpen) viewer.prevPiece(); });
-bindings.setHandler('zoomIn', () => { if (viewer.isOpen) viewer.zoomBy(1.15); });
-bindings.setHandler('toggleExtras', () => { if (viewer.isOpen) viewer.toggleExtras(); });
-bindings.setHandler('zoomOut', () => { if (viewer.isOpen) viewer.zoomBy(1 / 1.15); });
 
 // Escape always goes up one level: music -> its folder -> library; trash -> library; nothing at the top.
 function goUp() {
@@ -74,10 +85,9 @@ window.addEventListener('keydown', e => {
     case 'ArrowLeft': case 'ArrowUp': case 'PageUp': viewer.prev(); break;
     case ']': viewer.nextPiece(); break;
     case '[': viewer.prevPiece(); break;
-    case '+': case '=': viewer.zoomBy(1.15); break;
-    case '-': case '_': viewer.zoomBy(1 / 1.15); break;
+    case '+': case '=': viewer.zoomBy(1 / 1.15); break;                    // + = one more line of music on screen
+    case '-': case '_': viewer.zoomBy(1.15); break;                        // - = one line fewer
     case '0': viewer.fitWidth(); break;
-    case 'h': case 'H': viewer.toggleExtras(); break;
     case 'a': case 'A': viewer.toggleAnnotate(); break;
     default: return;
   }
@@ -98,13 +108,18 @@ let thumbURLs = [];
 let dragId = null;              // piece id being dragged inside the app
 
 const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' });
-const folderPieces = fid => pieces.filter(p => p.folderId === fid)
-  .sort((a, b) => ((a.order ?? 1e9) - (b.order ?? 1e9)) || byTitle(a, b));
+let orders = {};                // folder id -> piece ids in play order (pieces not listed go after them, in the order they were added)
+const folderPieces = fid => {
+  const rank = new Map((orders[fid ?? ''] || []).map((id, i) => [id, i]));
+  return pieces.filter(p => p.folderId === fid)
+    .sort((a, b) => ((rank.get(a.id) ?? 1e9) - (rank.get(b.id) ?? 1e9)) || ((a.order ?? 1e9) - (b.order ?? 1e9)) || byTitle(a, b));
+};
 const looseTop = () => pieces.filter(p => p.folderId === null).sort(byTitle);
 const currentFolder = () => folders.find(f => f.id === currentFolderId) || null;
 
 async function refreshLibrary() {
-  const [all, allFolders] = await Promise.all([listPieces(), listFolders()]);
+  const [all, allFolders, ord] = await Promise.all([listPieces(), listFolders(), loadOrders().catch(() => orders)]);
+  orders = ord;
   pieces = all.filter(p => !p.trashedAt);
   trashed = all.filter(p => p.trashedAt).sort((x, y) => y.trashedAt - x.trashedAt);
   folders = allFolders.filter(f => !f.trashedAt);
@@ -130,6 +145,7 @@ function render() {
   $('#upload-btn').hidden = $('#upload-folder-btn').hidden = inTrash;
   $('#empty-trash-btn').hidden = !(inTrash && trashItemCount());
   $('#trash-btn').classList.toggle('active', inTrash);
+  $('#trash-btn').classList.toggle('empty', !inTrash && !trashItemCount());      // nothing in it: hidden (it still appears while a piece is dragged, as a place to drop)
   const badge = $('#trash-btn .badge');          // counts pieces, not folders
   badge.hidden = !trashed.length;
   badge.textContent = trashed.length;
@@ -178,14 +194,17 @@ function thumbURL(p) {
   return url;
 }
 
-function button(label, glyph) {
+function button(label, glyph, svg) {
   const b = document.createElement('button');
   b.type = 'button';
   b.title = label;
   b.setAttribute('aria-label', label);
-  b.textContent = glyph;
+  if (svg) b.innerHTML = svg; else b.textContent = glyph;
   return b;
 }
+
+// Circled "+" (copy to another folder) and circled arrow (move to another folder).
+const circleIcon = sym => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/>${sym === 'plus' ? '<path d="M12 7.6v8.8M7.6 12h8.8"/>' : '<path d="M7.4 12h9M12.9 8l4 4-4 4"/>'}</svg>`;
 
 const othersOf = p => pieces.filter(q => q.id !== p.id && q.fileId === p.fileId);
 function placeName(q) {
@@ -307,69 +326,113 @@ function row(p, i, items) {
 
   const actions = document.createElement('div');
   actions.className = 'row-actions';
+  const arrows = document.createElement('div');
+  arrows.className = 'row-arrows';
   const up = button('Move up', '▲');
   const down = button('Move down', '▼');
   up.disabled = i === 0;
   down.disabled = i === items.length - 1;
-  up.addEventListener('click', e => { e.stopPropagation(); shift(items, i, -1); });
-  down.addEventListener('click', e => { e.stopPropagation(); shift(items, i, +1); });
-  actions.append(up, down, ...pieceButtons(p));
+  up.addEventListener('click', e => { e.stopPropagation(); shift(p, -1); });
+  down.addEventListener('click', e => { e.stopPropagation(); shift(p, +1); });
+  arrows.append(up, down);
+  actions.append(...pieceButtons(p));
 
-  li.append(grip, num, th, text, actions);
+  li.append(grip, arrows, num, th, text, actions);
   const openIt = () => openPiece(p);
   li.addEventListener('click', openIt);
   li.addEventListener('keydown', e => { if (e.key === 'Enter') openIt(); });
 
+  li._pid = p.id; li.dataset.folder = p.folderId || '';
   li.addEventListener('dragstart', e => {
     dragId = p.id;
     e.dataTransfer.setData('application/x-mb-piece', p.id);
     e.dataTransfer.effectAllowed = 'move';
+    startRowDrag(li);
     setTimeout(() => li.classList.add('dragging'), 0);
   });
-  li.addEventListener('dragend', () => {
-    dragId = null;
-    li.classList.remove('dragging');
-    list.querySelectorAll('.drop-before, .drop-after').forEach(n => n.classList.remove('drop-before', 'drop-after'));
-  });
-  li.addEventListener('dragover', e => {
-    if (!dragId || dragId === p.id) return;
-    e.preventDefault();
-    const r = li.getBoundingClientRect();
-    const before = e.clientY < r.top + r.height / 2;
-    li.classList.toggle('drop-before', before);
-    li.classList.toggle('drop-after', !before);
-  });
-  li.addEventListener('dragleave', () => li.classList.remove('drop-before', 'drop-after'));
-  li.addEventListener('drop', async e => {
-    const before = li.classList.contains('drop-before');
-    li.classList.remove('drop-before', 'drop-after');
-    if (!dragId || dragId === p.id) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const id = dragId; dragId = null;
-    const ids = items.map(x => x.id);
-    if (!ids.includes(id)) return;                 // came from outside this folder
-    ids.splice(ids.indexOf(id), 1);
-    ids.splice(ids.indexOf(p.id) + (before ? 0 : 1), 0, id);
-    await reorderPieces(ids);
-    refreshLibrary();
-  });
+  li.addEventListener('dragend', () => { dragId = null; endRowDrag(); });
   return li;
 }
 
-async function shift(items, i, delta) {
-  const ids = items.map(x => x.id);
-  const j = i + delta;
-  if (j < 0 || j >= ids.length) return;
-  [ids[i], ids[j]] = [ids[j], ids[i]];
-  await reorderPieces(ids);
-  refreshLibrary();
+// Drag to reorder: the other rows slide out of the way to open a gap where the piece will land.
+let rowDrag = null;
+function startRowDrag(li) {
+  const rows = [...list.querySelectorAll(':scope > .row-item')];
+  const from = rows.indexOf(li);
+  if (from < 0) { rowDrag = null; return; }
+  const rects = rows.map(r => r.getBoundingClientRect());
+  const step = rects.length > 1 ? rects[1].top - rects[0].top : li.offsetHeight + 8;
+  rowDrag = { li, rows, from, to: from, mids: rects.map(r => r.top + r.height / 2), step };
+  rows.forEach(r => { r.style.transition = 'transform .15s ease'; });
+}
+function endRowDrag() {
+  if (!rowDrag) return;
+  rowDrag.rows.forEach(r => { r.style.transform = ''; r.style.transition = ''; });
+  rowDrag.li.classList.remove('dragging');
+  rowDrag = null;
+}
+function rowDragOver(y) {
+  const d = rowDrag; if (!d) return;
+  let to = 0;                                              // final index = number of other rows whose centre is above the pointer
+  d.mids.forEach((m, i) => { if (i !== d.from && m < y) to++; });
+  d.to = to;
+  d.rows.forEach((r, i) => {
+    let dy = 0;
+    if (i === d.from) dy = (to - d.from) * d.step;
+    else if (to > d.from && i > d.from && i <= to) dy = -d.step;
+    else if (to < d.from && i >= to && i < d.from) dy = d.step;
+    r.style.transform = dy ? `translateY(${dy}px)` : '';
+  });
+}
+list.addEventListener('dragover', e => {
+  if (!dragId || !rowDrag) return;
+  e.preventDefault();
+  rowDragOver(e.clientY);
+});
+list.addEventListener('drop', async e => {
+  if (!dragId || !rowDrag) return;
+  e.preventDefault(); e.stopPropagation();
+  const { from, to, rows, li } = rowDrag;
+  const id = dragId; dragId = null;
+  const folderId = li.dataset.folder || null;
+  const order = rows.map(r => r._pid);
+  endRowDrag();
+  if (from === to || order.some(x => !x)) return;
+  await reorderIn(folderId, ids => {
+    // ids is the folder's current order; the dragged piece lands where the rows showed it
+    if (!ids.includes(id) || ids.length !== order.length) return false;
+    const others = ids.filter(x => x !== id);
+    others.splice(to, 0, id);
+    ids.splice(0, ids.length, ...others);
+    return true;
+  });
+});
+
+// Reordering always starts from the folder's current order and runs one change at a time, so quick successive clicks
+// or drops each act on the result of the one before (never on a stale list).
+let reorderQueue = Promise.resolve();
+function reorderIn(folderId, change) {
+  reorderQueue = reorderQueue.then(async () => {
+    const ids = folderPieces(folderId).map(x => x.id);
+    if (!change(ids)) return;
+    await reorderPieces(folderId, ids);
+    await refreshLibrary();
+  }).catch(e => { console.error(e); setStatus(`Could not change the order (${e && (e.name || e.message) || e}).`, true); clearStatusSoon(9000); });
+  return reorderQueue;
+}
+function shift(p, delta) {
+  return reorderIn(p.folderId, ids => {
+    const i = ids.indexOf(p.id), j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return false;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    return true;
+  });
 }
 
 // ----- piece actions -----
 function pieceButtons(p) {
-  const copy = button('Copy to another folder (shares the same file)…', '🔗');
-  const move = button('Move to folder…', '📂');
+  const copy = button('Copy to another folder (shares the same file)…', '', circleIcon('plus'));
+  const move = button('Move to folder…', '', circleIcon('arrow'));
   const rename = button('Rename', '✎');
   const del = button('Delete', '🗑');
   copy.addEventListener('click', e => { e.stopPropagation(); movePiece(p, 'copy'); });
@@ -380,7 +443,9 @@ function pieceButtons(p) {
     if (t && t.trim()) { await updatePiece(p.id, { title: t.trim() }); refreshLibrary(); }
   });
   del.addEventListener('click', e => { e.stopPropagation(); removePiece(p); });
-  return [copy, move, rename, del];
+  const sep = document.createElement('span');
+  sep.className = 'act-sep';
+  return [rename, sep, copy, move, del];
 }
 
 // Delete = straight to the trash (no questions asked; it can be put back from there).
@@ -496,11 +561,16 @@ async function emptyTrash() {
   if (!confirm(`Permanently delete everything in the trash (${what})? This can't be undone.`)) return;
   for (const f of trashedFolders) await deleteFolderForever(f.id);
   for (const p of trashLoose()) await deletePiece(p.id);
-  refreshLibrary();
+  inTrash = false;                                   // back to the view we were in when we opened the trash
+  await refreshLibrary();
+  if (currentFolderId && !folders.some(f => f.id === currentFolderId)) currentFolderId = null;
+  render(); window.scrollTo(0, 0);
 }
 
 $('#empty-trash-btn').addEventListener('click', emptyTrash);
 const trashBtn = $('#trash-btn');
+document.addEventListener('dragstart', () => setTimeout(() => { if (dragId) document.body.classList.add('piece-dragging'); }, 0), true);
+['dragend', 'drop'].forEach(ev => window.addEventListener(ev, () => setTimeout(() => document.body.classList.remove('piece-dragging'), 0), true));
 trashBtn.addEventListener('click', () => { inTrash = !inTrash; render(); window.scrollTo(0, 0); });
 // drag a piece onto the trash icon to delete it
 trashBtn.addEventListener('dragover', e => { if (dragId) { e.preventDefault(); trashBtn.classList.add('drop-target'); } });
@@ -607,7 +677,35 @@ async function openPiece(p, siblingsOverride) {
 // ---------- upload ----------
 const folderInput = $('#folder-input');
 $('#upload-btn').addEventListener('click', () => fileInput.click());
-$('#upload-folder-btn').addEventListener('click', () => folderInput.click());
+// Browsers' own <input webkitdirectory> dialog can't be limited to folders (it ignores `accept` and may let you pick files).
+// Where the File System Access API exists (Chrome, Edge) use its folder-only picker; otherwise fall back to the input.
+let dirPickerBroken = false;
+$('#upload-folder-btn').addEventListener('click', async () => {
+  if (!window.showDirectoryPicker || dirPickerBroken) { folderInput.click(); return; }
+  let dir;
+  try { dir = await window.showDirectoryPicker({ mode: 'read', id: 'music-book-import' }); }
+  catch (e) {
+    if (e && e.name === 'AbortError') return;                               // cancelled
+    dirPickerBroken = true; folderInput.click(); return;                     // not allowed here: use the basic chooser
+  }
+  try { await importFromDirectory(dir); } catch (e) { console.error(e); setStatus('Could not read that folder.'); clearStatusSoon(4000); }
+});
+
+async function importFromDirectory(dir) {
+  const exts = supportedExtensions(), direct = [], nested = [];
+  const walk = async (h, depth) => {
+    for await (const [name, e] of h.entries()) {
+      if (name.startsWith('.')) continue;
+      if (e.kind === 'directory') { await walk(e, depth + 1); continue; }
+      if (!exts.some(x => name.toLowerCase().endsWith(x))) continue;      // only PDFs / images are ever read
+      const f = await e.getFile();
+      if (readerForFile(f)) (depth === 0 ? direct : nested).push(f);
+    }
+  };
+  await walk(dir, 0);
+  if (currentFolderId && !inTrash) return importMixed([...direct, ...nested].sort(naturalName), []);   // inside a folder: add here
+  return importMixed([], [{ name: dir.name, files: direct.sort(naturalName), skippedSubfolders: nested.length }]);
+}
 $('#empty-upload').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => { importFiles([...fileInput.files]); fileInput.value = ''; });
 folderInput.addEventListener('change', () => { importFromPicker([...folderInput.files]); folderInput.value = ''; });
@@ -657,6 +755,9 @@ function readAllEntries(reader) {
 
 // <input webkitdirectory>: files carry webkitRelativePath = "Folder/file.pdf" (deeper = subfolder)
 function importFromPicker(files) {
+  if (currentFolderId && !inTrash) {                         // inside a folder: add the PDFs to this folder (folders are one level deep)
+    return importMixed(files.filter(f => readerForFile(f)).sort(naturalName), []);
+  }
   const groups = new Map();
   for (const f of files) {
     const parts = (f.webkitRelativePath || f.name).split('/');
@@ -690,6 +791,7 @@ async function sha256(blob) {
 
 // Pieces added before this feature have no hash yet: compute them once in the background.
 async function backfillHashes() {
+  if (!globalThis.crypto?.subtle) return;               // no hashing here (insecure page): don't re-read every file on each load
   for (const p of pieces.filter(x => !x.hash)) {
     try {
       const blob = await MB.getFile(p.fileId);
@@ -924,7 +1026,27 @@ function setStatus(text, isError = false) {
   statusEl.hidden = !text;
 }
 
-const libraryReady = refreshLibrary().then(backfillHashes);
+const libraryLoaded = refreshLibrary();                       // the library is on screen after this
+const libraryReady = libraryLoaded.then(backfillHashes);      // (hashing old pieces carries on quietly afterwards)
+
+// Reload: go back to the piece that was open.
+(async () => {
+  await libraryLoaded;
+  let s = null;
+  try { s = await getMeta('session'); } catch {}
+  if (!s) { try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch {} }
+  if (!s) { try { if (window.name.startsWith(SESSION_KEY + '=')) s = JSON.parse(window.name.slice(SESSION_KEY.length + 1)); } catch {} }
+  if (!s) return;
+  const p = pieces.find(x => x.id === s.id);
+  if (!p) { clearSession(); return; }
+  try {
+    currentFolderId = p.folderId && folders.some(f => f.id === p.folderId) ? p.folderId : null;
+    render();
+    await openPiece(p);
+    if (viewer.isOpen) viewer.ann.applySnapshot(s.ann);
+    if (s.annotating && viewer.isOpen) viewer.ann.setOn(true);
+  } catch (e) { console.error(e); setStatus(`Couldn't reopen the piece: ${e && (e.message || e)}`, true); }
+})().catch(e => { console.error(e); setStatus(`Couldn't restore the open piece: ${e && (e.message || e)}`, true); });
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

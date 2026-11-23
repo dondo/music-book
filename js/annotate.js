@@ -362,6 +362,7 @@ class Annotator {
     this._applyMode(on ? (mode || this.lastOpen || 'words') : 'collapsed');
     if (on) { this._sizeHint(); this._refresh(); }
     this._clearHint();
+    this.v.onAnnotate?.();
   }
 
   // Esc: close the fingering box, else leave annotating. Returns true if it did something.
@@ -388,6 +389,7 @@ class Annotator {
     btn.title = `Toolbar position: now at the ${d}. Click to choose another edge.`;
     for (const k of DOCKS) this.v.root.classList.toggle('ann-dock-' + k, k === d);
     try { localStorage.setItem('mb-ann-dock', d); } catch {}
+    this.v.onAnnotate?.();
   }
 
   _selectTool(t) {
@@ -396,7 +398,22 @@ class Annotator {
     this._saveState();
     this._refresh();
   }
-  _saveState() { try { localStorage.setItem('mb-ann-state', JSON.stringify({ tool: this.tool, color: this.color, size: this.size })); } catch {} }
+  _saveState() {
+    try { localStorage.setItem('mb-ann-state', JSON.stringify({ tool: this.tool, color: this.color, size: this.size })); } catch {}
+    this.v.onAnnotate?.();
+  }
+
+  // The toolbar's look (tool, colour, eraser size, edge, names or icons), for keeping across reloads where localStorage isn't available.
+  snapshot() { return { tool: this.tool, color: this.color, size: this.size, dock: this.dock, mode: this.lastOpen }; }
+  applySnapshot(s) {
+    if (!s) return;
+    if (Object.values(TOOL_KEYS).includes(s.tool)) this.tool = s.tool;
+    if (COLORS.some(c => c[1] === s.color)) this.color = s.color;
+    if ([0, 1, 2].includes(s.size)) this.size = s.size;
+    if (s.mode === 'icons' || s.mode === 'words') this.lastOpen = s.mode;
+    if (DOCKS.includes(s.dock)) this._setDock(s.dock);
+    this._refresh();
+  }
 
   _toggleMenu() {
     if (!this.menu.hidden) { this._closeMenu(); return; }
@@ -438,7 +455,7 @@ class Annotator {
     const p = this.bar.querySelector('.ann-pencil-btn');
     p.setAttribute('aria-pressed', m === 'collapsed' ? 'false' : 'true');
     p.title = m === 'collapsed' ? 'Annotate ( a )' : m === 'words' ? 'Hide the button names' : 'Show the button names';
-    if (m !== 'collapsed') { this.lastOpen = m; try { localStorage.setItem('mb-ann-mode', m); } catch {} }
+    if (m !== 'collapsed') { this.lastOpen = m; try { localStorage.setItem('mb-ann-mode', m); } catch {} this.v.onAnnotate?.(); }
     this._closeMenu();
   }
 
@@ -991,9 +1008,14 @@ class Annotator {
 
   // Keys for a selected annotation (the global handler asks us first, so arrows nudge instead of turning pages).
   handleKey(e) {
-    if (!this.on || !this.pop.hidden) return false;
     if (e.metaKey || e.ctrlKey || e.altKey) return false;
     const tool = TOOL_KEYS[e.key.toLowerCase()];            // F fingering, H highlight, N note, E erase, M move
+    if (!this.on) {                                          // a tool key opens the toolbar straight onto that tool
+      if (!tool || !this.anns || !this.v.geom || this.v.busy) return false;
+      if (!e.repeat) { this.setOn(true); this._selectTool(tool); this._clearHint(); }
+      return true;
+    }
+    if (!this.pop.hidden) return false;
     if (tool && !e.repeat) { if (!this.menu.hidden) this._closeMenu(); this._selectTool(tool); this._clearHint(); return true; }
     if (tool) return true;
     if (this.tool !== 'move' || !this.sel) return false;

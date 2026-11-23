@@ -9,13 +9,10 @@
 const KEY = 'music-book.settings.v1';
 
 const ACTIONS = [
-  { id: 'next', label: 'Next page' },
-  { id: 'prev', label: 'Previous page' },
-  { id: 'nextPiece', label: 'Next piece in folder' },
-  { id: 'prevPiece', label: 'Previous piece in folder' },
-  { id: 'zoomIn', label: 'Zoom in' },
-  { id: 'zoomOut', label: 'Zoom out' },
-  { id: 'toggleExtras', label: 'Show/hide headers & footers' },
+  { id: 'next', label: 'Next page', hint: '→ ↓ Space PageDown, or tap the right side of the page' },
+  { id: 'prev', label: 'Previous page', hint: '← ↑ PageUp, or tap the left side of the page' },
+  { id: 'nextPiece', label: 'Next piece in folder', hint: '] or ⌘→' },
+  { id: 'prevPiece', label: 'Previous piece in folder', hint: '[ or ⌘←' },
 ];
 
 const DEFAULTS = {
@@ -27,16 +24,17 @@ const DEFAULTS = {
     prev: [{ type: 'cc', number: 67 }],    // soft pedal
     nextPiece: [],                         // unbound until you Learn them
     prevPiece: [],
-    zoomIn: [],
-    zoomOut: [],
-    toggleExtras: [],
   },
 };
 
 function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (raw) return { ...DEFAULTS, ...raw, midiBindings: { ...DEFAULTS.midiBindings, ...(raw.midiBindings || {}) } };
+    if (raw) {
+      const s = { ...DEFAULTS, ...raw, midiBindings: { ...DEFAULTS.midiBindings, ...(raw.midiBindings || {}) } };
+      for (const k of Object.keys(s.midiBindings)) if (!(k in DEFAULTS.midiBindings)) delete s.midiBindings[k];   // actions that no longer exist (zoom, headers/footers)
+      return s;
+    }
   } catch {}
   return structuredClone(DEFAULTS);
 }

@@ -36,8 +36,8 @@ function tx(stores, mode, fn) {
     let result;
     Promise.resolve(fn(t)).then(r => { result = r; }, reject);
     t.oncomplete = () => resolve(result);
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
+    t.onerror = e => reject(e?.target?.error || t.error || new Error('database request failed'));
+    t.onabort = () => reject(t.error || new Error('database transaction aborted'));
   }));
 }
 
@@ -66,6 +66,16 @@ async function getFile(id) {
 
 async function getLayout(fileId) {
   return tx(['layouts'], 'readonly', t => req(t.objectStore('layouts').get(fileId)));
+}
+// Small settings records (folder order, what is open) live in the `layouts` store under 'meta:<name>' keys: tiny values, no blobs.
+async function getMeta(name) {
+  return tx(['layouts'], 'readonly', t => req(t.objectStore('layouts').get('meta:' + name)));
+}
+async function putMeta(name, value) {
+  return tx(['layouts'], 'readwrite', t => { t.objectStore('layouts').put(value, 'meta:' + name); });
+}
+async function deleteMeta(name) {
+  return tx(['layouts'], 'readwrite', t => { t.objectStore('layouts').delete('meta:' + name); });
 }
 async function getAnnotations(fileId) {
   return tx(['annotations'], 'readonly', t => req(t.objectStore('annotations').get(fileId)));
@@ -238,14 +248,13 @@ async function setPieceFolder(id, folderId) {
 }
 
 // orderedIds: ids of a folder's pieces in the new order.
-async function reorderPieces(orderedIds) {
-  return tx(['pieces'], 'readwrite', async t => {
-    const store = t.objectStore('pieces');
-    for (const [i, id] of orderedIds.entries()) {
-      const cur = await req(store.get(id));
-      if (cur) store.put({ ...cur, order: i });
-    }
-  });
+// Play order of a folder: a list of piece ids kept in one small record (rewriting the pieces themselves, with their
+// thumbnail blobs, was failing in some browsers). folderId = null is the top level.
+async function loadOrders() { return (await getMeta('orders')) || {}; }
+async function reorderPieces(folderId, orderedIds) {
+  const all = await loadOrders();
+  all[folderId ?? ''] = orderedIds;
+  await putMeta('orders', all);
 }
 
 // ---- folders ----
@@ -287,7 +296,7 @@ async function requestPersistence() {
 }
 
 Object.assign(MB, {
-  listPieces, getPiece, getFile, getLayout, putLayout, getAnnotations, putAnnotations, addPiece, addLink, updatePiece, deletePiece, trashPiece, restorePiece, trashFolder, restoreFolder, deleteFolderForever, setPieceFolder, reorderPieces,
+  listPieces, getPiece, getFile, getLayout, putLayout, getAnnotations, putAnnotations, addPiece, addLink, updatePiece, deletePiece, trashPiece, restorePiece, trashFolder, restoreFolder, deleteFolderForever, setPieceFolder, reorderPieces, loadOrders, getMeta, putMeta, deleteMeta,
   listFolders, addFolder, updateFolder, deleteFolder, requestPersistence,
 });
 })();
