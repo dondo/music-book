@@ -42,7 +42,21 @@ const __default = {
       return canvasToBlob(c, 'image/jpeg', 0.8);
     }
 
-    return { pageCount: 1, renderPage, thumbnail, destroy() { bitmap.close?.(); } };
+    async function getPageSize() { return { width: bitmap.width, height: bitmap.height }; }
+
+    async function renderRegion(n, canvas, { x, y, w, h, scale, dpr = window.devicePixelRatio || 1 }) {
+      const s = scale * dpr;
+      canvas.width = Math.max(1, Math.round(w * s));
+      canvas.height = Math.max(1, Math.round(h * s));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(bitmap, x, y, w, h, 0, 0, canvas.width, canvas.height);
+      return true;
+    }
+
+    return { pageCount: 1, renderPage, getPageSize, renderRegion, thumbnail, destroy() { bitmap.close?.(); } };
   },
 };
 MB.imageReader = __default;

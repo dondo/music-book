@@ -63,9 +63,33 @@ const __default = {
       return canvasToBlob(c, 'image/jpeg', 0.8);
     }
 
+    // Page size in PDF units (rotation applied).
+    async function getPageSize(n) {
+      const page = await pdf.getPage(n);
+      const v = page.getViewport({ scale: 1 });
+      return { width: v.width, height: v.height };
+    }
+
+    // Render just the rectangle (x, y, w, h) of page n (in page units) at `scale` CSS px per unit.
+    // The canvas is sized to the rectangle; only that part is drawn.
+    async function renderRegion(n, canvas, { x, y, w, h, scale, dpr = window.devicePixelRatio || 1 }) {
+      const page = await pdf.getPage(n);
+      const s = scale * dpr;
+      canvas.width = Math.max(1, Math.round(w * s));
+      canvas.height = Math.max(1, Math.round(h * s));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const viewport = page.getViewport({ scale: s, offsetX: -x * s, offsetY: -y * s });
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      return true;
+    }
+
     return {
       pageCount: pdf.numPages,
       renderPage,
+      getPageSize,
+      renderRegion,
       thumbnail,
       destroy() { loadingTask.destroy(); },
     };

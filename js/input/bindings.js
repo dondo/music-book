@@ -13,9 +13,13 @@ const ACTIONS = [
   { id: 'prev', label: 'Previous page' },
   { id: 'nextPiece', label: 'Next piece in folder' },
   { id: 'prevPiece', label: 'Previous piece in folder' },
+  { id: 'zoomIn', label: 'Zoom in' },
+  { id: 'zoomOut', label: 'Zoom out' },
+  { id: 'toggleExtras', label: 'Show/hide headers & footers' },
 ];
 
 const DEFAULTS = {
+  hideExtras: false,                       // hide page headers/footers (page numbers, copyright lines...)
   autoAdvance: false,                      // turning past the last page continues into the next piece
   midiInputs: null,                        // null = all devices, else [deviceId...]
   midiBindings: {
@@ -23,6 +27,9 @@ const DEFAULTS = {
     prev: [{ type: 'cc', number: 67 }],    // soft pedal
     nextPiece: [],                         // unbound until you Learn them
     prevPiece: [],
+    zoomIn: [],
+    zoomOut: [],
+    toggleExtras: [],
   },
 };
 

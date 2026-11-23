@@ -113,7 +113,7 @@ class SettingsUI {
     adv.append(advBox, el('span', {}, 'Page turn past the end of a piece continues into the next piece in the folder (and back from page 1 into the previous one)'));
     body.append(adv);
 
-    body.append(el('p', { class: 'muted' }, 'Keyboard: → ↓ Space PageDown = next, ← ↑ PageUp = previous, ] = next piece, [ = previous piece, Esc = close. Tapping the page also turns it.'));
+    body.append(el('p', { class: 'muted' }, 'Keyboard: → ↓ Space PageDown = next, ← ↑ PageUp = previous, ] or ⌘→ = next piece, [ or ⌘← = previous piece, + / - = zoom, 0 = fit to width, h = hide/show headers and footers, a = annotate (Esc/Close to leave, ⌘Z undo; while annotating F/H/N/E/M pick the tool), Esc = up one level (close music / leave folder / leave trash). Tapping the page also turns it.'));
 
     // --- Live monitor ---
     body.append(el('h3', {}, 'Last MIDI message'));

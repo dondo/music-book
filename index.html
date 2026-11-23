@@ -7,17 +7,18 @@
   <meta name="theme-color" content="#1b1d21">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=32">
 </head>
 <body>
   <main id="library">
     <header class="topbar">
-      <h1><button id="crumb-root" type="button" class="crumb">Music Book</button><span id="crumb-folder"></span></h1>
+      <h1><button id="crumb-root" type="button" class="crumb">Music Library</button><span id="crumb-folder"></span></h1>
       <span id="folder-actions" hidden>
         <button id="folder-rename" type="button" title="Rename folder" aria-label="Rename folder">✎</button>
         <button id="folder-delete" type="button" title="Delete folder" aria-label="Delete folder">🗑</button>
       </span>
       <div class="spacer"></div>
+      <button id="empty-trash-btn" type="button" class="danger" hidden>Empty trash</button>
       <button id="new-folder-btn" type="button">+ New folder</button>
       <button id="upload-folder-btn" type="button">+ Add folder</button>
       <button id="upload-btn" type="button" class="primary">+ Add music</button>
@@ -32,6 +33,7 @@
         Supported: <span id="formats"></span></p>
     </div>
 
+    <div id="empty-trash" class="muted" hidden>The trash is empty.</div>
     <div id="empty-folder" class="muted" hidden>This folder is empty. Add music here, or use Move (or drag a piece onto the folder).</div>
 
     <ul id="grid"></ul>
@@ -40,12 +42,21 @@
     <input id="folder-input" type="file" webkitdirectory multiple hidden>
   </main>
 
+  <button id="trash-btn" type="button" title="Trash" aria-label="Trash">🗑<span class="badge" hidden></span></button>
+
   <div id="viewer" hidden>
     <div class="stage"></div>
     <div class="viewer-title"></div>
     <button class="piece-prev" type="button" title="Previous piece ( [ )" aria-label="Previous piece" hidden>⏮</button>
     <button class="piece-next" type="button" title="Next piece ( ] )" aria-label="Next piece" hidden>⏭</button>
+    <div class="zoom" role="group" aria-label="Zoom">
+      <button class="extras-toggle" type="button" title="Hide headers and footers ( h )" aria-pressed="false" hidden>H/F</button>
+      <button class="zoom-out" type="button" title="Smaller ( - )" aria-label="Zoom out">−</button>
+      <button class="zoom-label" type="button" title="Fit to width ( 0 )" aria-label="Fit to width"><span class="sr">100%</span></button>
+      <button class="zoom-in" type="button" title="Larger ( + )" aria-label="Zoom in">+</button>
+    </div>
     <button class="close" type="button" aria-label="Close music" title="Close (Esc)">×</button>
+    <div class="busy" hidden></div>
     <div class="page-indicator"></div>
   </div>
 
@@ -69,27 +80,29 @@
       <p class="dup-summary"></p>
       <ul class="dup-list"></ul>
       <div class="dup-buttons">
-        <button class="dup-here primary" type="button">Add here</button>
+        <button class="dup-here primary" type="button">Only here</button>
         <button class="dup-there" type="button">Only there</button>
         <button class="dup-both" type="button">Both places</button>
         <button class="dup-cancel" type="button">Cancel import</button>
       </div>
-      <p class="muted dup-hint"><b>Add here</b> moves it here from where it is. <b>Only there</b> leaves it where it is and skips the upload. <b>Both places</b> keeps it there and also shows it here (the file is stored once). A score that is already in several places is never moved, only added here.</p>
+      <p class="muted dup-hint"></p>
     </div>
   </dialog>
 
   <div id="drop-hint">Drop to add to library</div>
 
   <script src="vendor/pdfjs/pdf.min.js"></script>
-  <script src="js/namespace.js"></script>
-  <script src="js/library.js"></script>
-  <script src="js/readers/pdf-reader.js"></script>
-  <script src="js/readers/image-reader.js"></script>
-  <script src="js/readers/index.js"></script>
-  <script src="js/input/midi.js"></script>
-  <script src="js/input/bindings.js"></script>
-  <script src="js/viewer.js"></script>
-  <script src="js/settings-ui.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/namespace.js?v=32"></script>
+  <script src="js/library.js?v=32"></script>
+  <script src="js/readers/pdf-reader.js?v=32"></script>
+  <script src="js/readers/image-reader.js?v=32"></script>
+  <script src="js/readers/index.js?v=32"></script>
+  <script src="js/input/midi.js?v=32"></script>
+  <script src="js/input/bindings.js?v=32"></script>
+  <script src="js/layout.js?v=32"></script>
+  <script src="js/annotate.js?v=32"></script>
+  <script src="js/viewer.js?v=32"></script>
+  <script src="js/settings-ui.js?v=32"></script>
+  <script src="js/app.js?v=32"></script>
 </body>
 </html>
