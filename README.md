@@ -75,3 +75,7 @@ MIDI bindings cover only page and piece turning (next/previous page, next/previo
 ## Versioning and build
 
 `python3 tools/build.py` (the same scheme as the study app) stamps the version before you copy, commit or push. The footer shows `VERSION` (the number in the `VERSION` file, e.g. 1.0; change it by hand for a bigger release) plus a short fingerprint of the sources, e.g. `1.0 (build 3f3510c)`. The same fingerprint becomes the `?v=` number on every script and stylesheet in `index.html` and the offline cache name in `sw.js`, so browsers and installed copies pick up changes. Run it after every change; running it again without changes alters nothing. There is nothing to bundle: the app runs straight from the files, from `file://` or published from the repository root with GitHub Pages.
+
+## Icons
+
+`icons/icon.svg` is the source (blue tile, staff, white note, like the Music Theory app). `python3 tools/make-icons.py` (needs `rsvg-convert`) makes the PNGs used for the iPad/iPhone home screen (`apple-touch-icon`) and the installable-app manifest; run it after changing the SVG, then `tools/build.py`.

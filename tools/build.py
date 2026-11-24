@@ -28,6 +28,9 @@ base = read("VERSION").strip() if os.path.exists("VERSION") else "1.0"
 
 # fingerprint of everything that is the app, ignoring the bits this script writes (version.js, the ?v= numbers, the cache name)
 def normalized(p):
+    if p.endswith(".png"):
+        with open(p, "rb") as f:
+            return f.read()
     s = read(p)
     if p == "index.html":
         s = re.sub(r"\?v=[0-9a-zA-Z.]+", "?v=X", s)
@@ -36,7 +39,7 @@ def normalized(p):
     return s.encode("utf-8")
 
 sources = ["index.html", "sw.js", "manifest.webmanifest"] + sorted(
-    glob.glob("css/*.css") + [p for p in glob.glob("js/**/*.js", recursive=True) if os.path.basename(p) != "version.js"])
+    glob.glob("css/*.css") + glob.glob("icons/*.svg") + glob.glob("icons/*.png") + [p for p in glob.glob("js/**/*.js", recursive=True) if os.path.basename(p) != "version.js"])
 h = hashlib.sha1()
 for p in sources:
     h.update(p.encode()); h.update(normalized(p))
