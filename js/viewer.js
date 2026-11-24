@@ -8,6 +8,7 @@ const { readerById, getFile, getLayout, putLayout, analyzeDocument, packScreens,
 
 const PAD = 12;               // breathing room around the music, in CSS px
 const MIN_ZOOM = 0.3;
+const ARM_WINDOW = 20000;                  // a second turn past the end of a piece counts if it comes within this long
 const RESUME_WINDOW = 30 * 60 * 1000;      // a piece closed longer ago than this starts from the first page again
 
 class Viewer {
@@ -112,6 +113,7 @@ class Viewer {
 
   async _enter(piece, doc, start) {
     const old = this.doc;
+    this._armed = null; this._ret = null;
     if (this.piece && this.piece.id !== piece.id) this._left = { id: this.piece.id, t: Date.now() };
     this.piece = piece;
     this.doc = doc;
@@ -337,16 +339,24 @@ class Viewer {
   async goTo(n) {
     if (!this.doc || this.busy) return;
     const autoAdvance = !!this.getOptions?.().autoAdvance;
-    if (n >= this.screens.length) {
-      if (autoAdvance && await this.switchPiece(1, 'first')) return;
+    if (n >= this.screens.length || n < 0) {
+      const dir = n < 0 ? -1 : 1;
+      // Turning past the end of a piece needs a second turn to go on to the neighbouring piece (so one stray pedal press can't lose your place).
+      if (autoAdvance && (dir > 0 ? this.hasNextPiece : this.hasPrevPiece)) {
+        const a = this._armed, back = this._ret && this._ret.dir === dir;      // `back`: going straight back to the piece just left
+        if (back || (a && a.dir === dir && Date.now() - a.t < ARM_WINDOW)) {
+          this._armed = null;
+          if (await this.switchPiece(dir, dir > 0 ? 'first' : 'last')) { this._ret = { dir: -dir }; return; }
+        } else {
+          this._armed = { dir, t: Date.now() };
+          this._say(dir > 0 ? 'End of the piece · turn again for the next piece' : 'Start of the piece · turn again for the previous piece');
+          return;
+        }
+      }
       this.flashIndicator();
       return;
     }
-    if (n < 0) {
-      if (autoAdvance && await this.switchPiece(-1, 'last')) return;
-      this.flashIndicator();
-      return;
-    }
+    this._armed = null; this._ret = null;
     if (n === this.screen) { this.flashIndicator(); return; }
     this.screen = n;
     await this.render();
@@ -475,10 +485,20 @@ class Viewer {
     this.nextBtn.disabled = !this.hasNextPiece;
   }
 
-  updateIndicator() {
+  _indicatorText() {
     const many = this.siblings.length > 1;
-    this.indicator.textContent = `${this.screen + 1} / ${this.screens.length}` + (many ? ` · piece ${this.index + 1} of ${this.siblings.length}` : '');
+    return `${this.screen + 1} / ${this.screens.length}` + (many ? ` · piece ${this.index + 1} of ${this.siblings.length}` : '');
+  }
+  updateIndicator() {
+    this.indicator.textContent = this._indicatorText();
     this.flashIndicator();
+  }
+
+  _say(text) {                                              // a short message in the page indicator (it goes back to the page number when it fades)
+    this.indicator.textContent = text;
+    this.flashIndicator();
+    clearTimeout(this._sayT);
+    this._sayT = setTimeout(() => { if (this.doc) this.indicator.textContent = this._indicatorText(); }, 1800);      // (the message has faded by now)
   }
 
   flashIndicator() {

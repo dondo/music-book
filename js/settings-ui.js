@@ -125,7 +125,7 @@ class SettingsUI {
       this.bindings.settings.autoAdvance = advBox.checked;
       saveSettings(this.bindings.settings);
     });
-    adv.append(advBox, el('span', {}, 'Page turn past the end of a piece continues into the next piece in the folder (and back from page 1 into the previous one)'));
+    adv.append(advBox, el('span', {}, 'Two page turns past end of a piece advances to next piece'));
     body.append(adv);
 
     // --- Live monitor ---
