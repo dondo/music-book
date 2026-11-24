@@ -8,6 +8,7 @@ const { readerById, getFile, getLayout, putLayout, analyzeDocument, packScreens,
 
 const PAD = 12;               // breathing room around the music, in CSS px
 const MIN_ZOOM = 0.3;
+const RESUME_WINDOW = 30 * 60 * 1000;      // a piece closed longer ago than this starts from the first page again
 
 class Viewer {
   constructor(root, { onClose, onOpen, onAnnotate, onPageChange, getOptions, onOptionChange } = {}) {
@@ -49,19 +50,6 @@ class Viewer {
     root.querySelector('.close').addEventListener('click', e => { e.stopPropagation(); this.close(); });
     this.prevBtn.addEventListener('click', e => { e.stopPropagation(); this.prevPiece(); });
     this.nextBtn.addEventListener('click', e => { e.stopPropagation(); this.nextPiece(); });
-    // On a touch screen the click of a tap can be lost (the browser takes a finger that moves a little for a scroll and cancels the
-    // press), so the zoom buttons also act when the finger lifts; the click that may follow is ignored.
-    const zoomEl = root.querySelector('.zoom');
-    zoomEl.addEventListener('pointerdown', e => MB.debug?.('zoom pointerdown', e.pointerType, e.target.className || e.target.tagName));
-    zoomEl.addEventListener('pointercancel', e => MB.debug?.('zoom pointercancel', e.pointerType));
-    let touchAt = 0, downBtn = null;
-    zoomEl.addEventListener('pointerdown', e => { downBtn = e.pointerType !== 'mouse' ? e.target.closest('button') : null; });
-    zoomEl.addEventListener('pointerup', e => {
-      const b = e.target.closest('button');
-      if (e.pointerType === 'mouse' || !b || b !== downBtn || b.disabled) return;
-      touchAt = Date.now(); e.preventDefault(); e.stopPropagation(); b.click();
-    });
-    zoomEl.addEventListener('click', e => { if (e.isTrusted && Date.now() - touchAt < 700) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     root.querySelector('.zoom-in').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1 / 1.15); });   // + = one more line of music (smaller)
     root.querySelector('.zoom-out').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1.15); });       // − = one line fewer (bigger)
     this.zoomLabel.addEventListener('click', e => { e.stopPropagation(); this.toggleFit(); });
@@ -124,6 +112,7 @@ class Viewer {
 
   async _enter(piece, doc, start) {
     const old = this.doc;
+    if (this.piece && this.piece.id !== piece.id) this._left = { id: this.piece.id, t: Date.now() };
     this.piece = piece;
     this.doc = doc;
     this.ann.detach();
@@ -244,6 +233,7 @@ class Viewer {
     this.zoomLabel.setAttribute('aria-label', tip);
     this.zoomLabel.disabled = !back && this.zoom >= (this.levels ? this.levels[0] : 1) - 1e-6;   // already as large as it gets
     const lv = this.levels || [this.zoom];
+    this.zoomBox.hidden = !this.layout || (lv.length < 2 && this.zoomBack == null);        // nothing to zoom to (the page already fits): no buttons
     this.root.querySelector('.zoom-in').disabled = this.zoom <= lv[lv.length - 1] + 1e-6;     // + : nothing more to add
     this.root.querySelector('.zoom-out').disabled = this.zoom >= lv[0] - 1e-6;                // − : already as big as it goes
   }
@@ -260,7 +250,6 @@ class Viewer {
   // One step = one more (or one fewer) system on the screen.
   async zoomBy(factor) {
     const lv = this.levels || [];
-    MB.debug?.('zoomBy', factor > 1 ? 'out' : 'in', { zoom: this.zoom, levels: lv.map(x => +x.toFixed(3)), busy: !!this.busy, doc: !!this.doc, layout: !!this.layout });
     const i = lv.indexOf(this._nearestLevel(this.zoom));
     const j = Math.min(Math.max(i + (factor > 1 ? -1 : 1), 0), lv.length - 1);
     return this.setZoom(lv.length ? lv[j] : this.zoom);
@@ -277,12 +266,11 @@ class Viewer {
   }
 
   async setZoom(z, keepBack = false) {
-    if (!this.doc || !this.layout || this.busy) { MB.debug?.('setZoom ignored', { doc: !!this.doc, layout: !!this.layout, busy: !!this.busy }); return; }
+    if (!this.doc || !this.layout || this.busy) return;
     if (!keepBack || this.zoomBack === z) { this.zoomBack = null; this.updateZoomLabel(); }   // any other zoom change forgets the saved size
     const before = this.zoom;
     this.zoom = z;
     this._repack();
-    MB.debug?.('setZoom', { asked: z, before, now: this.zoom });
     if (Math.abs(this.zoom - before) < 1e-6) { this.flashIndicator(); return; }
     updatePiece(this.piece.id, { zoom: this.zoom });
     this.piece.zoom = this.zoom;
@@ -290,11 +278,14 @@ class Viewer {
     this._remember();
   }
 
-  async open(piece, siblings = [piece]) {
+  // Reopening a piece goes back to where it was left only if it was the last piece open here, it was closed a short while ago, and the app
+  // hasn't been reloaded since (this is kept in memory); otherwise it starts on the first page. `resume` forces it (restoring after a reload).
+  async open(piece, siblings = [piece], resume = false) {
     const doc = await this._load(piece);
     this.siblings = siblings.length ? siblings : [piece];
     this.index = Math.max(0, this.siblings.findIndex(p => p.id === piece.id));
-    await this._enter(piece, doc, 'resume');
+    const l = this._left, back = resume || (l && l.id === piece.id && Date.now() - l.t < RESUME_WINDOW);
+    await this._enter(piece, doc, back ? 'resume' : 'first');
   }
 
   async switchPiece(delta, start = 'first') {
@@ -324,6 +315,7 @@ class Viewer {
   close() {
     if (!this.doc) return;
     this.token++;
+    if (this.piece) this._left = { id: this.piece.id, t: Date.now() };
     this.ann.detach();
     this.geom = this.base = this.view = null;
     this.doc.destroy();

@@ -750,11 +750,11 @@ crumb.addEventListener('drop', async e => {
 });
 
 // ----- opening -----
-async function openPiece(p, siblingsOverride) {
+async function openPiece(p, siblingsOverride, resume = false) {
   try {
     setStatus(`Opening “${p.title}”…`);
     const siblings = siblingsOverride || (p.folderId ? folderPieces(p.folderId) : [p]);
-    await viewer.open(p, siblings);
+    await viewer.open(p, siblings, resume);
     setStatus('');
   } catch (e) {
     console.error(e);
@@ -1130,7 +1130,7 @@ const libraryReady = libraryLoaded.then(backfillHashes);      // (hashing old pi
   try {
     currentFolderId = p.folderId && folders.some(f => f.id === p.folderId) ? p.folderId : null;
     render();
-    await openPiece(p);
+    await openPiece(p, undefined, true);          // (a reload while a piece is open puts it back where it was)
     if (viewer.isOpen) viewer.ann.applySnapshot(s.ann);
     if (s.annotating && viewer.isOpen) viewer.ann.setOn(true);
   } catch (e) { console.error(e); setStatus(`Couldn't reopen the piece: ${e && (e.message || e)}`, true); }

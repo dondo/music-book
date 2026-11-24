@@ -360,6 +360,5 @@ dialog#ask-dialog { width: min(420px, 92vw); }
   .piece-prev:hover, .piece-next:hover { opacity: 1; }
   #viewer:hover .viewer-title { opacity: 1; }
 }
-@media (hover: none) { .zoom { opacity: .85; } .zoom button:active { opacity: .6; } }
+@media (hover: none) { .zoom { opacity: .85; } }
 
-.zoom, .zoom button, .piece-prev, .piece-next, .close, .extras-toggle { touch-action: manipulation; }
