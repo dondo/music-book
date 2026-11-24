@@ -69,7 +69,7 @@ button.link { background: none; border: none; padding: 0; color: var(--accent); 
 .card-title { margin-top: 8px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta { color: var(--muted); font-size: 13px; }
 .card-actions { position: absolute; top: 14px; right: 14px; display: flex; gap: 4px; opacity: 0; transition: opacity .1s; }
-.card:hover .card-actions, .card:focus-within .card-actions { opacity: 1; }
+.card:focus-within .card-actions { opacity: 1; }
 .card-actions button { padding: 2px 7px; font-size: 13px; background: var(--chip); }
 @media (hover: none) { .card-actions { opacity: 1; } }
 
@@ -85,7 +85,7 @@ body.dragging #drop-hint { display: grid; }
 .stage canvas.page { background: #fff; display: block; box-shadow: 0 2px 18px rgba(0, 0, 0, .5); }
 .zoom { position: absolute; top: max(10px, env(safe-area-inset-top)); right: calc(max(12px, env(safe-area-inset-right)) + 50px);
   display: flex; gap: 4px; z-index: 2; opacity: .35; transition: opacity .2s; }
-.zoom:hover, .zoom:focus-within { opacity: 1; }
+.zoom:focus-within { opacity: 1; }
 .zoom[hidden] { display: none; }
 .zoom button { height: 40px; min-width: 40px; padding: 0 10px; border-radius: 20px; font-size: 20px; line-height: 1;
   background: var(--float); border-color: var(--float-line); }
@@ -115,7 +115,7 @@ body.dragging #drop-hint { display: grid; }
 .page-indicator { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
   background: var(--float); padding: 3px 12px; border-radius: 999px; font-size: 13px;
   opacity: 0; transition: opacity .3s; pointer-events: none; }
-.page-indicator.show, #viewer:hover .viewer-title { opacity: 1; }
+.page-indicator.show { opacity: 1; }
 
 /* ---------- settings ---------- */
 dialog#settings, dialog#sync-dialog, dialog#ask-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px;
@@ -186,7 +186,7 @@ h1 { display: flex; align-items: baseline; gap: 2px; }
 .piece-prev, .piece-next { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); width: 44px; height: 36px; padding: 0;
   border-radius: 999px; background: var(--float); border-color: var(--float-line); z-index: 2; opacity: .55; }
 .piece-prev { left: 14px; } .piece-next { right: 14px; }
-.piece-prev:hover, .piece-next:hover { opacity: 1; }
+
 .piece-prev:disabled, .piece-next:disabled { opacity: .2; cursor: default; }
 .piece-prev[hidden], .piece-next[hidden] { display: none; }
 
@@ -351,3 +351,13 @@ html.is-local::before { content: ''; position: fixed; top: 0; left: 0; right: 0;
 .ask-input { width: 100%; box-sizing: border-box; font: inherit; color: var(--text); background: var(--inset); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
 dialog#ask-dialog { width: min(420px, 92vw); }
 .grip { padding: 14px 6px; margin: -14px -6px; }
+
+/* Hover reveals (fading controls in) only where there is a real hover. On a touch screen iOS treats a tap that changes the page on
+   "hover" as only the hover, and swallows the click: the zoom buttons needed a second tap, or never worked. */
+@media (hover: hover) {
+  .zoom:hover { opacity: 1; }
+  .card:hover .card-actions { opacity: 1; }
+  .piece-prev:hover, .piece-next:hover { opacity: 1; }
+  #viewer:hover .viewer-title { opacity: 1; }
+}
+@media (hover: none) { .zoom { opacity: .85; } .zoom button:active { opacity: .6; } }

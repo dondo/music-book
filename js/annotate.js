@@ -252,7 +252,7 @@ class Annotator {
       </div>
     </div>`);
     this.pop = el(`<div class="ann-pop" hidden>
-      <input type="text" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Fingering">
+      <input type="text" inputmode="none" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Fingering">
       ${['1', '2', '3', '4', '5', '/', '-'].map(k => `<button type="button" data-key="${k}">${k}</button>`).join('')}
       <button type="button" class="ok" title="Add (Enter)">✓</button>
       <button type="button" class="no" title="Cancel (Esc)">✕</button>
