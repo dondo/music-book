@@ -33,6 +33,16 @@ class SettingsUI {
     const body = this.dialog.querySelector('.settings-body');
     body.replaceChildren();
 
+    // --- Appearance ---
+    const ap = el('div', { class: 'appearance' });
+    const apLabel = el('label', { for: 'set-theme' }, 'Appearance:');
+    const apSel = el('select', { id: 'set-theme' });
+    for (const [v, t] of [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match this device']]) apSel.append(el('option', { value: v }, t));
+    apSel.value = MB.getTheme();
+    apSel.addEventListener('change', () => MB.setTheme(apSel.value));
+    ap.append(apLabel, apSel);
+    body.append(ap);
+
     // --- MIDI devices ---
     const h1 = el('h3', {}, 'MIDI input');
     body.append(h1);

@@ -7,12 +7,13 @@
   <meta name="theme-color" content="#1b1d21">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/style.css?v=54">
+  <script>try { var t = localStorage.getItem("mb-theme"); if (t === "light" || t === "auto") document.documentElement.setAttribute("data-theme", t); } catch (e) { }</script>
+  <link rel="stylesheet" href="css/style.css?v=f24765d">
 </head>
 <body>
   <main id="library">
     <header class="topbar">
-      <h1><button id="crumb-root" type="button" class="crumb">Music Library</button><span id="crumb-folder"></span></h1>
+      <h1><button id="crumb-root" type="button" class="crumb">Music Library</button><span id="crumb-folder"></span><span class="local-badge" id="local-badge" hidden title="This is your local copy (local.js is present)">LOCAL</span></h1>
       <span id="folder-actions" hidden>
         <button id="folder-rename" type="button" title="Rename folder" aria-label="Rename folder">✎</button>
         <button id="folder-delete" type="button" title="Delete folder" aria-label="Delete folder">🗑</button>
@@ -50,6 +51,7 @@
       <div class="foot-col foot-license">
         <h2>License</h2>
         <p><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></p>
+        <p><a href="https://github.com/dondo/music-book" target="_blank" rel="noopener">Source on GitHub</a></p>
         <p class="foot-version">Version <span data-version>dev</span></p>
       </div>
     </footer>
@@ -105,18 +107,32 @@
   <div id="drop-hint">Drop to add to library</div>
 
   <script src="vendor/pdfjs/pdf.min.js"></script>
-  <script src="js/version.js?v=54"></script>
-  <script src="js/namespace.js?v=54"></script>
-  <script src="js/library.js?v=54"></script>
-  <script src="js/readers/pdf-reader.js?v=54"></script>
-  <script src="js/readers/image-reader.js?v=54"></script>
-  <script src="js/readers/index.js?v=54"></script>
-  <script src="js/input/midi.js?v=54"></script>
-  <script src="js/input/bindings.js?v=54"></script>
-  <script src="js/layout.js?v=54"></script>
-  <script src="js/annotate.js?v=54"></script>
-  <script src="js/viewer.js?v=54"></script>
-  <script src="js/settings-ui.js?v=54"></script>
-  <script src="js/app.js?v=54"></script>
+  <script src="js/version.js?v=f24765d"></script>
+  <script src="js/namespace.js?v=f24765d"></script>
+  <script src="js/library.js?v=f24765d"></script>
+  <script src="js/readers/pdf-reader.js?v=f24765d"></script>
+  <script src="js/readers/image-reader.js?v=f24765d"></script>
+  <script src="js/readers/index.js?v=f24765d"></script>
+  <script src="js/input/midi.js?v=f24765d"></script>
+  <script src="js/input/bindings.js?v=f24765d"></script>
+  <script src="js/layout.js?v=f24765d"></script>
+  <script src="js/annotate.js?v=f24765d"></script>
+  <script src="js/viewer.js?v=f24765d"></script>
+  <script src="js/theme.js?v=f24765d"></script>
+  <script src="js/settings-ui.js?v=f24765d"></script>
+  <script src="js/app.js?v=f24765d"></script>
+  <script>
+    // local.js exists only on the author's machine (it is in .gitignore): if it loads, say so in the header and the tab title
+    (function () {
+      var s = document.createElement('script');
+      s.src = 'local.js';
+      s.onload = function () {
+        document.getElementById('local-badge').hidden = false;
+        document.title = '[LOCAL] ' + document.title;
+        document.documentElement.classList.add('is-local');
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
 </body>
 </html>

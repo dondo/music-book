@@ -191,6 +191,7 @@ const ICONS = {
   done: ICON('<path d="m5 12.5 4.5 4.5L19 7.5" />'),
   del: ICON('<path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 12.5a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4L18 7" /><path d="M9 7V4.5h6V7" />'),
   pencil: ICON('<path d="M4 20l1-4.6L16.2 4.2a2.1 2.1 0 0 1 3 0l.6.6a2.1 2.1 0 0 1 0 3L8.6 19z"/><path d="m14 6.5 3.5 3.5M4 20l4.6-1"/>'),
+  expand: ICON('<path d="M8.5 5.5v13l8-6.5z" fill="currentColor" stroke-width="1.2"/>'),      /* a plain triangle: points right to expand, flips to point left to collapse */
   left: ICON('<path d="M15 5 8 12l7 7"/>'), right: ICON('<path d="m9 5 7 7-7 7"/>'), up: ICON('<path d="m5 15 7-7 7 7"/>'), down: ICON('<path d="m5 9 7 7 7-7"/>'),
 };
 const DOTS = [3, 5.2, 8].map(r => ICON(`<circle cx="12" cy="12" r="${r}" fill="currentColor" stroke="none"/>`));   // eraser sizes
@@ -231,16 +232,16 @@ class Annotator {
     this.layer = el('<div class="ann-layer" hidden><canvas></canvas></div>');
     this.hint = this.layer.firstChild;
     this.bar = el(`<div class="ann-bar mode-collapsed" hidden>
-      <div class="ann-group ann-pencil"><button type="button" class="ann-pencil-btn" aria-pressed="false" aria-label="Annotate">${ICONS.pencil}${LBL('Annotate')}</button></div>
+      <div class="ann-group ann-pencil"><button type="button" class="ann-pencil-btn" aria-label="Annotate"><span class="pen">${ICONS.pencil}</span><span class="tri">${ICONS.expand}</span></button></div>
       <div class="ann-group ann-tools">
         <button type="button" data-tool="fing" title="(F) Fingering: tap, then type 1–5, / or -" aria-label="Fingering">${ICONS.fing}${LBL('Fingering')}</button>
         <button type="button" data-tool="hl" title="(H) Highlight: drag a box (tap a highlight to remove it)" aria-label="Highlight">${ICONS.hl}${LBL('Highlight')}</button>
+        <div class="ann-sub ann-colors">${COLORS.map(([n, c]) => `<button type="button" class="sw" data-color="${c}" title="${n}" style="background:${c}"></button>`).join('')}</div>
         <button type="button" data-tool="note" title="(N) Add a note: tap on the staff" aria-label="Note">${ICONS.note}${LBL('Note')}</button>
         <button type="button" data-tool="erase" title="(E) Erase: drag over music (staff lines are kept)" aria-label="Erase">${ICONS.erase}${LBL('Erase')}</button>
+        <div class="ann-sub ann-sizes">${ERASER.map((e, i) => `<button type="button" data-size="${i}" title="${e.title}" aria-label="${e.title}">${DOTS[i]}</button>`).join('')}</div>
         <button type="button" data-tool="move" title="(M) Move: drag an annotation, or tap to select it (then arrow keys or the arrows nudge it, Delete removes it)" aria-label="Move">${ICONS.move}${LBL('Move')}</button>
       </div>
-      <div class="ann-group ann-colors">${COLORS.map(([n, c]) => `<button type="button" class="sw" data-color="${c}" title="${n}" style="background:${c}"></button>`).join('')}</div>
-      <div class="ann-group ann-sizes">${ERASER.map((e, i) => `<button type="button" data-size="${i}" title="${e.title}" aria-label="${e.title}">${DOTS[i]}</button>`).join('')}</div>
       <div class="ann-group ann-nudge" hidden>
         <button type="button" class="ann-del" title="Delete ( Delete )" aria-label="Delete">${ICONS.del}${LBL('Delete')}</button>
       </div>
@@ -443,7 +444,7 @@ class Annotator {
     if (this._menuOut) { document.removeEventListener('pointerdown', this._menuOut, true); this._menuOut = null; }
   }
 
-  // The pencil opens the toolbar (with names); once open it only switches between names and icons-only. Close collapses it.
+  // The triangle opens the toolbar (with names); once open it only switches between names and icons-only (▸ expands, ◂ collapses). Close collapses it.
   _cyclePencil() {
     if (!this.anns || this.v.busy) return;
     if (!this.on) this.setOn(true);                        // re-opens in the state it was closed in
@@ -453,8 +454,7 @@ class Annotator {
     this.mode = m;
     for (const k of ['collapsed', 'words', 'icons']) this.bar.classList.toggle('mode-' + k, k === m);
     const p = this.bar.querySelector('.ann-pencil-btn');
-    p.setAttribute('aria-pressed', m === 'collapsed' ? 'false' : 'true');
-    p.title = m === 'collapsed' ? 'Annotate ( a )' : m === 'words' ? 'Hide the button names' : 'Show the button names';
+    p.title = p.ariaLabel = m === 'collapsed' ? 'Open the annotation toolbar ( a )' : m === 'words' ? 'Hide the button names' : 'Show the button names';
     if (m !== 'collapsed') { this.lastOpen = m; try { localStorage.setItem('mb-ann-mode', m); } catch {} this.v.onAnnotate?.(); }
     this._closeMenu();
   }
