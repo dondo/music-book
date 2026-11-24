@@ -39,6 +39,17 @@ document.addEventListener('click', e => {
   const now = Date.now(); taps = now - tt < 1500 ? taps + 1 : 1; tt = now;
   if (taps >= 5) { taps = 0; set(!on); }
 }, true);
+
+// While debugging, trace every step of a touch on the zoom controls or the annotation toolbar (so the two can be compared).
+const desc = t => !t || !t.tagName ? String(t) : t.tagName.toLowerCase() + (typeof t.className === 'string' && t.className ? '.' + t.className.split(' ')[0] : '');
+['pointerdown', 'pointerup', 'pointercancel', 'touchstart', 'touchend', 'touchcancel', 'click', 'lostpointercapture', 'gotpointercapture', 'dragstart', 'selectstart', 'contextmenu'].forEach(type => {
+  document.addEventListener(type, e => {
+    if (!on || !e.target.closest || !e.target.closest('.zoom, .ann-bar')) return;
+    const t = e.touches && e.touches[0] || e.changedTouches && e.changedTouches[0] || e;
+    const at = t.clientX != null ? document.elementFromPoint(t.clientX, t.clientY) : null;
+    log('·' + type, desc(e.target), e.pointerType || '', 'at', desc(at), e.defaultPrevented ? 'prevented' : '');
+  }, true);
+});
 MB.debug = log; MB.debugOn = () => on;
 if (on) document.addEventListener('DOMContentLoaded', paint);
 })();
