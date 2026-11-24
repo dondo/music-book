@@ -49,7 +49,19 @@ class Viewer {
     root.querySelector('.close').addEventListener('click', e => { e.stopPropagation(); this.close(); });
     this.prevBtn.addEventListener('click', e => { e.stopPropagation(); this.prevPiece(); });
     this.nextBtn.addEventListener('click', e => { e.stopPropagation(); this.nextPiece(); });
-    root.querySelector('.zoom').addEventListener('pointerdown', e => MB.debug?.('zoom pointerdown', e.pointerType, e.target.className || e.target.tagName));
+    // On a touch screen the click of a tap can be lost (the browser takes a finger that moves a little for a scroll and cancels the
+    // press), so the zoom buttons also act when the finger lifts; the click that may follow is ignored.
+    const zoomEl = root.querySelector('.zoom');
+    zoomEl.addEventListener('pointerdown', e => MB.debug?.('zoom pointerdown', e.pointerType, e.target.className || e.target.tagName));
+    zoomEl.addEventListener('pointercancel', e => MB.debug?.('zoom pointercancel', e.pointerType));
+    let touchAt = 0, downBtn = null;
+    zoomEl.addEventListener('pointerdown', e => { downBtn = e.pointerType !== 'mouse' ? e.target.closest('button') : null; });
+    zoomEl.addEventListener('pointerup', e => {
+      const b = e.target.closest('button');
+      if (e.pointerType === 'mouse' || !b || b !== downBtn || b.disabled) return;
+      touchAt = Date.now(); e.preventDefault(); e.stopPropagation(); b.click();
+    });
+    zoomEl.addEventListener('click', e => { if (e.isTrusted && Date.now() - touchAt < 700) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     root.querySelector('.zoom-in').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1 / 1.15); });   // + = one more line of music (smaller)
     root.querySelector('.zoom-out').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1.15); });       // − = one line fewer (bigger)
     this.zoomLabel.addEventListener('click', e => { e.stopPropagation(); this.toggleFit(); });
