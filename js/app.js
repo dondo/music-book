@@ -9,6 +9,31 @@ const {
 } = MB;
 
 const $ = sel => document.querySelector(sel);
+
+// In-page replacements for confirm() and prompt(): some embedded browsers (e.g. MIDIWeb on iPad) silently ignore the native ones.
+const askDlg = document.getElementById('ask-dialog');
+function askBox(message, { text, label, danger }) {
+  return new Promise(resolve => {
+    const body = askDlg.querySelector('.ask-body'); body.replaceChildren();
+    const msg = document.createElement('p'); msg.textContent = message; body.append(msg);
+    let input = null;
+    if (text !== undefined) { input = document.createElement('input'); input.type = 'text'; input.value = text; input.className = 'ask-input'; body.append(input); }
+    const row = document.createElement('div'); row.className = 'sync-actions';
+    const ok = document.createElement('button'); ok.type = 'button'; ok.textContent = label; ok.className = danger ? 'danger' : 'primary';
+    const no = document.createElement('button'); no.type = 'button'; no.textContent = 'Cancel';
+    row.append(ok, no); body.append(row);
+    let done = false;
+    const finish = v => { if (done) return; done = true; askDlg.close(); resolve(v); };
+    ok.addEventListener('click', () => finish(input ? input.value : true));
+    no.addEventListener('click', () => finish(input ? null : false));
+    askDlg.addEventListener('cancel', () => finish(input ? null : false), { once: true });
+    if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') ok.click(); });
+    askDlg.showModal(); if (input) { input.focus(); input.select(); }
+  });
+}
+const askYes = (message, label = 'OK') => askBox(message, { label, danger: true });
+const askText = (message, value) => askBox(message, { text: value, label: 'OK' });
+
 const grid = $('#grid');
 const list = $('#list');
 const empty = $('#empty');
@@ -439,7 +464,7 @@ function pieceButtons(p) {
   move.addEventListener('click', e => { e.stopPropagation(); movePiece(p, 'move'); });
   rename.addEventListener('click', async e => {
     e.stopPropagation();
-    const t = prompt('Title', p.title);
+    const t = await askText('Title', p.title);
     if (t && t.trim()) { await updatePiece(p.id, { title: t.trim() }); refreshLibrary(); }
   });
   del.addEventListener('click', e => { e.stopPropagation(); removePiece(p); });
@@ -497,7 +522,7 @@ function trashRow(p, sub) {
   move.addEventListener('click', e => { e.stopPropagation(); movePiece(p, 'restore'); });
   forever.addEventListener('click', async e => {
     e.stopPropagation();
-    if (confirm(`Permanently delete “${p.title}”? This can't be undone.`)) { await deletePiece(p.id); refreshLibrary(); }
+    if (await askYes(`Permanently delete “${p.title}”? This can't be undone.`, 'Delete permanently')) { await deletePiece(p.id); refreshLibrary(); }
   });
   if (!sub) {
     const back = trashButton('↩ Put back');
@@ -542,7 +567,7 @@ function trashFolderRow(f) {
   forever.addEventListener('click', async e => {
     e.stopPropagation();
     const what = kids.length ? `the folder “${f.name}” and its ${kids.length} piece${kids.length === 1 ? '' : 's'}` : `the folder “${f.name}”`;
-    if (confirm(`Permanently delete ${what}? This can't be undone.`)) { await deleteFolderForever(f.id); refreshLibrary(); }
+    if (await askYes(`Permanently delete ${what}? This can't be undone.`, 'Delete permanently')) { await deleteFolderForever(f.id); refreshLibrary(); }
   });
   actions.append(back, forever);
 
@@ -558,7 +583,7 @@ async function emptyTrash() {
   if (!n) return;
   const pieceCount = trashed.length;
   const what = `${trashedFolders.length ? trashedFolders.length + ' folder' + (trashedFolders.length === 1 ? '' : 's') + ' and ' : ''}${pieceCount} piece${pieceCount === 1 ? '' : 's'}`;
-  if (!confirm(`Permanently delete everything in the trash (${what})? This can't be undone.`)) return;
+  if (!(await askYes(`Permanently delete everything in the trash (${what})? This can't be undone.`, 'Empty trash'))) return;
   for (const f of trashedFolders) await deleteFolderForever(f.id);
   for (const p of trashLoose()) await deletePiece(p.id);
   inTrash = false;                                   // back to the view we were in when we opened the trash
@@ -610,7 +635,7 @@ function movePiece(p, mode = 'move') {
   nb.type = 'button';
   nb.textContent = '+ New folder…';
   nb.addEventListener('click', async () => {
-    const name = prompt('New folder name');
+    const name = await askText('New folder name', '');
     if (!name || !name.trim()) return;
     dlg.close();
     const f = await addFolder(name.trim());
@@ -624,14 +649,14 @@ $('#move-dialog .move-cancel').addEventListener('click', () => $('#move-dialog')
 
 // ----- folder actions -----
 $('#new-folder-btn').addEventListener('click', async () => {
-  const name = prompt('New folder name');
+  const name = await askText('New folder name', '');
   if (!name || !name.trim()) return;
   await addFolder(name.trim());
   refreshLibrary();
 });
 
 async function renameFolder(f) {
-  const name = prompt('Folder name', f.name);
+  const name = await askText('Folder name', f.name);
   if (name && name.trim()) { await updateFolder(f.id, { name: name.trim() }); refreshLibrary(); }
 }
 

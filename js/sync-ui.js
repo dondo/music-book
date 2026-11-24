@@ -116,12 +116,12 @@ function connect() {
   view = 'connect';
   const n = field('Name'), p = field('Passphrase', 'Two words joined by a dash.'), offer = el('div', 'sync-actions');
   const go = button('Connect', async () => {
-    offer.replaceChildren();
-    if (!Sync.validName(n.input.value) || !Sync.validPass(p.input.value)) {
-      say('A name has at least ' + Sync.NAME_MIN + ' characters, and a passphrase is two words of 4 to 6 letters joined by a dash.', true); return;
-    }
-    go.disabled = true; say('Checking…');
+    offer.replaceChildren(); say('Checking…');
     try {
+      if (!Sync.validName(n.input.value) || !Sync.validPass(p.input.value)) {
+        say('A name has at least ' + Sync.NAME_MIN + ' characters, and a passphrase is two words of 4 to 6 letters joined by a dash.', true); return;
+      }
+      go.disabled = true;
       const d = await Sync.derive(n.input.value, p.input.value);
       if (!(await Sync.exists(d))) {
         say('No stored data for that name and passphrase. Want to create it?'); go.disabled = false;
