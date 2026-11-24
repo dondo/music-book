@@ -362,3 +362,6 @@ dialog#ask-dialog { width: min(420px, 92vw); }
 }
 @media (hover: none) { .zoom { opacity: .85; } }
 
+.ann-pop .del svg { width: 18px; height: 18px; display: block; }
+.ann-pop .del { color: var(--danger); }
+.ann-pop .del[hidden] { display: none; }

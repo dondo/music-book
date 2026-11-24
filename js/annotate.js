@@ -254,6 +254,8 @@ class Annotator {
     this.pop = el(`<div class="ann-pop" hidden>
       <input type="text" inputmode="none" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Fingering">
       ${['1', '2', '3', '4', '5', '/', '-'].map(k => `<button type="button" data-key="${k}">${k}</button>`).join('')}
+      <button type="button" class="back" title="Delete the last digit" aria-label="Delete the last digit">⌫</button>
+      <button type="button" class="del" title="Delete this fingering" aria-label="Delete this fingering" hidden>${ICONS.del}</button>
       <button type="button" class="ok" title="Add (Enter)">✓</button>
       <button type="button" class="no" title="Cancel (Esc)">✕</button>
     </div>`);
@@ -314,6 +316,8 @@ class Annotator {
       if (!b) return;
       e.stopPropagation();
       if (b.dataset.key) { this.input.value = (this.input.value + b.dataset.key).slice(0, 8); this.input.focus(); }
+      else if (b.classList.contains('back')) { this.input.value = this.input.value.slice(0, -1); this.input.focus(); }
+      else if (b.classList.contains('del')) { this.input.value = ''; this._commitPending(); }          // nothing left to add: an existing fingering is removed
       else if (b.classList.contains('ok')) this._commitPending();
       else if (b.classList.contains('no')) this._closePop();
     });
@@ -563,7 +567,11 @@ class Annotator {
     const tool = this.tool, A = this.anns, op = st.op;
 
     if (tool === 'fing') {
-      if (pt && !st.moved) this._openPop(pt);
+      if (pt && !st.moved) {
+        const hit = this.anns.items.filter(i => i.t === 'fing' && i.p === pt.p && circleHitsBox(pt.x, pt.y, 0, fingBox(i))).pop();
+        if (hit) { this._selectTool('move'); this.sel = [hit]; this._refresh(); }      // tapping a fingering that is already there selects it, ready to move or delete
+        else this._openPop(pt);
+      }
     } else if (tool === 'note') {
       if (pt) {
         const sn = snapNote(this.layout, pt.p, pt.y);
@@ -577,7 +585,11 @@ class Annotator {
     } else if (tool === 'erase') {
       this._finishErase(st);
     } else if (tool === 'move') {
-      if (st.drag && st.moved) { op.add = st.drag.items.slice(); op.del = st.drag.snaps; }   // same ids: undo puts the old copies back
+      const one = st.drag && !st.moved && st.drag.items.length === 1 && st.drag.items[0].t === 'fing' ? st.drag.items[0] : null;
+      const dbl = one && this._tap && this._tap.id === one.id && Date.now() - this._tap.t < 450;
+      this._tap = one && !dbl ? { id: one.id, t: Date.now() } : null;
+      if (dbl && pt) { this._tap = null; this._openPop(pt); }                                  // double-tap a fingering: edit its number
+      else if (st.drag && st.moved) { op.add = st.drag.items.slice(); op.del = st.drag.snaps; }   // same ids: undo puts the old copies back
       else if (!st.drag) this.sel = null;                                                   // tapped empty space
     }
     A.commit(op);
@@ -696,6 +708,7 @@ class Annotator {
     const hit = this.anns.items.filter(i => i.t === 'fing' && i.p === pt.p && circleHitsBox(pt.x, pt.y, 0, fingBox(i))).pop();
     this.pending = { pt, existing: hit || null };
     this.input.value = hit ? hit.s : '';
+    this.pop.querySelector('.del').hidden = !hit;          // only a fingering that is already there can be deleted
     this.pop.hidden = false;
     const w = this.pop.offsetWidth || 330, h = this.pop.offsetHeight || 44;
     const left = Math.min(Math.max(8, pt.clientX - w / 2), window.innerWidth - w - 8);
