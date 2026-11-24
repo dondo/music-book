@@ -1,9 +1,9 @@
 // App-shell cache so Music Book opens offline. Bump VERSION when files change.
-const VERSION = 'mb-8c44c04';
+const VERSION = 'mb-1c80c95';
 const SHELL = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg',
   'vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
-  'js/version.js', 'js/namespace.js', 'js/library.js', 'js/theme.js', 'js/sync.js', 'js/sync-ui.js', 'js/readers/pdf-reader.js', 'js/readers/image-reader.js',
+  'js/version.js', 'js/namespace.js', 'js/debug.js', 'js/library.js', 'js/theme.js', 'js/sync.js', 'js/sync-ui.js', 'js/readers/pdf-reader.js', 'js/readers/image-reader.js',
   'js/readers/index.js', 'js/input/midi.js', 'js/input/bindings.js',
   'js/layout.js', 'js/annotate.js', 'js/viewer.js', 'js/settings-ui.js', 'js/app.js',
 ];

@@ -49,6 +49,7 @@ class Viewer {
     root.querySelector('.close').addEventListener('click', e => { e.stopPropagation(); this.close(); });
     this.prevBtn.addEventListener('click', e => { e.stopPropagation(); this.prevPiece(); });
     this.nextBtn.addEventListener('click', e => { e.stopPropagation(); this.nextPiece(); });
+    root.querySelector('.zoom').addEventListener('pointerdown', e => MB.debug?.('zoom pointerdown', e.pointerType, e.target.className || e.target.tagName));
     root.querySelector('.zoom-in').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1 / 1.15); });   // + = one more line of music (smaller)
     root.querySelector('.zoom-out').addEventListener('click', e => { e.stopPropagation(); this.zoomBy(1.15); });       // − = one line fewer (bigger)
     this.zoomLabel.addEventListener('click', e => { e.stopPropagation(); this.toggleFit(); });
@@ -247,6 +248,7 @@ class Viewer {
   // One step = one more (or one fewer) system on the screen.
   async zoomBy(factor) {
     const lv = this.levels || [];
+    MB.debug?.('zoomBy', factor > 1 ? 'out' : 'in', { zoom: this.zoom, levels: lv.map(x => +x.toFixed(3)), busy: !!this.busy, doc: !!this.doc, layout: !!this.layout });
     const i = lv.indexOf(this._nearestLevel(this.zoom));
     const j = Math.min(Math.max(i + (factor > 1 ? -1 : 1), 0), lv.length - 1);
     return this.setZoom(lv.length ? lv[j] : this.zoom);
@@ -263,11 +265,12 @@ class Viewer {
   }
 
   async setZoom(z, keepBack = false) {
-    if (!this.doc || !this.layout || this.busy) return;
+    if (!this.doc || !this.layout || this.busy) { MB.debug?.('setZoom ignored', { doc: !!this.doc, layout: !!this.layout, busy: !!this.busy }); return; }
     if (!keepBack || this.zoomBack === z) { this.zoomBack = null; this.updateZoomLabel(); }   // any other zoom change forgets the saved size
     const before = this.zoom;
     this.zoom = z;
     this._repack();
+    MB.debug?.('setZoom', { asked: z, before, now: this.zoom });
     if (Math.abs(this.zoom - before) < 1e-6) { this.flashIndicator(); return; }
     updatePiece(this.piece.id, { zoom: this.zoom });
     this.piece.zoom = this.zoom;
