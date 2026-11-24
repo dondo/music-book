@@ -147,6 +147,19 @@ class Viewer {
     else if (start === 'resume') this.screen = this._screenOfPosition(piece);
     else this.screen = 0;
     await this.render();
+    if (start === 'resume' && this.doc === doc) {          // back where it was left, not on page 1: say which page, big and briefly
+      const first = this.screens[this.screen]?.[0] ?? 0, page = this.layout ? this.layout.blocks[first].p : first + 1;
+      if (page > 1) this._bigPage(page);
+    }
+  }
+
+  _bigPage(n) {
+    let el = this.root.querySelector('.big-page');
+    if (!el) { el = document.createElement('div'); el.className = 'big-page'; el.setAttribute('aria-hidden', 'true'); this.root.append(el); }
+    el.textContent = `PAGE ${n}`;
+    el.classList.add('show');
+    clearTimeout(this._bigT);
+    this._bigT = setTimeout(() => el.classList.remove('show'), 1600);
   }
 
   // Which screen holds the position we last left off at?

@@ -365,3 +365,11 @@ dialog#ask-dialog { width: min(420px, 92vw); }
 .ann-pop .del svg { width: 18px; height: 18px; display: block; }
 .ann-pop .del { color: var(--danger); }
 .ann-pop .del[hidden] { display: none; }
+
+/* the page you came back to (shown briefly when a piece reopens on a later page) */
+.big-page { white-space: nowrap; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6; pointer-events: none;
+  padding: .12em .5em; border-radius: .25em; font: 700 clamp(48px, 12vw, 140px)/1 system-ui, -apple-system, sans-serif; letter-spacing: .04em;
+  color: #fff; background: rgba(20, 22, 26, .78); box-shadow: 0 6px 30px rgba(0, 0, 0, .4); opacity: 0; transition: opacity .35s; }
+.big-page.show { opacity: 1; }
+/* on a touch screen there is no hover to reveal the title, so it stays visible */
+@media (hover: none) { .viewer-title { opacity: 1; } }
