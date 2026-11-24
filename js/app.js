@@ -368,6 +368,7 @@ function row(p, i, items) {
   li.addEventListener('keydown', e => { if (e.key === 'Enter') openIt(); });
 
   li._pid = p.id; li.dataset.folder = p.folderId || '';
+  gripDrag(grip, li, p.id);
   li.addEventListener('dragstart', e => {
     dragId = p.id;
     e.dataTransfer.setData('application/x-mb-piece', p.id);
@@ -387,19 +388,47 @@ function startRowDrag(li) {
   if (from < 0) { rowDrag = null; return; }
   const rects = rows.map(r => r.getBoundingClientRect());
   const step = rects.length > 1 ? rects[1].top - rects[0].top : li.offsetHeight + 8;
-  rowDrag = { li, rows, from, to: from, mids: rects.map(r => r.top + r.height / 2), step };
+  const sy = scroller().scrollTop;
+  rowDrag = { li, rows, from, to: from, sy0: sy, mids: rects.map(r => r.top + sy + r.height / 2), step };      // page coordinates, so scrolling while dragging is fine
   rows.forEach(r => { r.style.transition = 'transform .15s ease'; });
 }
 function endRowDrag() {
+  stopAutoScroll();
   if (!rowDrag) return;
   rowDrag.rows.forEach(r => { r.style.transform = ''; r.style.transition = ''; });
   rowDrag.li.classList.remove('dragging');
   rowDrag = null;
 }
+// Dragging near the top or bottom edge of the window scrolls the page, so a piece can be carried past what is on screen.
+const scroller = () => document.scrollingElement || document.documentElement;
+let autoRaf = 0, autoY = 0, autoTick = null;
+function autoScroll(y, tick) {
+  autoY = y; autoTick = tick;
+  if (!autoRaf) autoRaf = requestAnimationFrame(autoStep);
+}
+function autoSpeed() {
+  const edge = 90, h = window.innerHeight;
+  if (autoY < edge) return -Math.ceil(22 * Math.min(1, (edge - autoY) / edge));
+  if (autoY > h - edge) return Math.ceil(22 * Math.min(1, (autoY - (h - edge)) / edge));
+  return 0;
+}
+function autoStep() {
+  autoRaf = 0;
+  if (!rowDrag) return;
+  const v = autoSpeed();
+  if (v) {
+    const s = scroller(), before = s.scrollTop;
+    s.scrollTop = before + v;
+    if (s.scrollTop !== before && autoTick) autoTick(autoY);
+    autoRaf = requestAnimationFrame(autoStep);
+  }
+}
+function stopAutoScroll() { if (autoRaf) cancelAnimationFrame(autoRaf); autoRaf = 0; autoTick = null; }
 function rowDragOver(y) {
   const d = rowDrag; if (!d) return;
   let to = 0;                                              // final index = number of other rows whose centre is above the pointer
-  d.mids.forEach((m, i) => { if (i !== d.from && m < y) to++; });
+  const py = y + scroller().scrollTop;
+  d.mids.forEach((m, i) => { if (i !== d.from && m < py) to++; });
   d.to = to;
   d.rows.forEach((r, i) => {
     let dy = 0;
@@ -413,12 +442,10 @@ list.addEventListener('dragover', e => {
   if (!dragId || !rowDrag) return;
   e.preventDefault();
   rowDragOver(e.clientY);
+  autoScroll(e.clientY, rowDragOver);
 });
-list.addEventListener('drop', async e => {
-  if (!dragId || !rowDrag) return;
-  e.preventDefault(); e.stopPropagation();
+async function commitRowDrag(id) {
   const { from, to, rows, li } = rowDrag;
-  const id = dragId; dragId = null;
   const folderId = li.dataset.folder || null;
   const order = rows.map(r => r._pid);
   endRowDrag();
@@ -431,7 +458,43 @@ list.addEventListener('drop', async e => {
     ids.splice(0, ids.length, ...others);
     return true;
   });
+}
+list.addEventListener('drop', async e => {
+  if (!dragId || !rowDrag) return;
+  e.preventDefault(); e.stopPropagation();
+  const id = dragId; dragId = null;
+  await commitRowDrag(id);
 });
+
+// Touch screens (iPad) don't start HTML5 drags from a finger in every browser, so the grip also drags by pointer events.
+function gripDrag(grip, li, id) {
+  grip.style.touchAction = 'none';
+  grip.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' || rowDrag) return;          // a mouse uses the normal drag and drop
+    e.preventDefault(); e.stopPropagation();
+    startRowDrag(li);
+    if (!rowDrag) return;
+    const y0 = e.clientY, pid = e.pointerId;
+    li.classList.add('dragging'); li.style.transition = 'none'; li.style.zIndex = '5';
+    try { grip.setPointerCapture(pid); } catch {}
+    const sy0 = scroller().scrollTop;
+    const place = y => { rowDragOver(y); li.style.transform = `translateY(${y - y0 + scroller().scrollTop - sy0}px)`; };
+    const move = ev => {
+      if (ev.pointerId !== pid || !rowDrag) return;
+      place(ev.clientY);
+      autoScroll(ev.clientY, place);
+    };
+    const done = async ev => {
+      if (ev.pointerId !== pid) return;
+      grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', done); grip.removeEventListener('pointercancel', done);
+      li.style.zIndex = '';
+      if (!rowDrag) return;
+      if (ev.type === 'pointercancel') endRowDrag(); else await commitRowDrag(id);
+    };
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', done); grip.addEventListener('pointercancel', done);
+  });
+  grip.addEventListener('click', e => e.stopPropagation());
+}
 
 // Reordering always starts from the folder's current order and runs one change at a time, so quick successive clicks
 // or drops each act on the result of the one before (never on a stale list).
