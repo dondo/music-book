@@ -344,6 +344,14 @@ class Annotator {
     this.v.root.classList.add('ann-avail');
   }
 
+  // Sync brought in changes to the markings of the open file: take them up (unless something here is still unsaved).
+  async reloadFrom(fileId) {
+    if (!this.anns || this.anns.fileId !== fileId || this.anns.timer || this.st) return;
+    await this.anns.load(fileId);
+    this.sel = null; this.nudgeOp = null;
+    this._paintSoon();
+  }
+
   detach() {
     this.sel = null; this.nudgeOp = null;
     this.setOn(false);

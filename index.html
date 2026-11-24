@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <script>try { var t = localStorage.getItem("mb-theme"); if (t === "light" || t === "auto") document.documentElement.setAttribute("data-theme", t); } catch (e) { }</script>
-  <link rel="stylesheet" href="css/style.css?v=f24765d">
+  <link rel="stylesheet" href="css/style.css?v=243fba9">
 </head>
 <body>
   <main id="library">
@@ -23,6 +23,7 @@
       <button id="new-folder-btn" type="button">+ New folder</button>
       <button id="upload-folder-btn" type="button" class="primary">+ Add folder</button>
       <button id="upload-btn" type="button" class="primary">+ Add music</button>
+      <button id="sync-btn" type="button" title="Sync across devices" aria-label="Sync across devices"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.6 4.8 4.8 0 0 1 17.5 18z"/></svg><span class="sync-dot" hidden></span></button>
       <button id="settings-btn" type="button" title="MIDI &amp; page-turn settings" aria-label="Settings">⚙</button>
     </header>
 
@@ -49,8 +50,6 @@
         <p>If you like it, consider buying my book as a tip: <a href="https://www.amazon.com/Houses-Sword-Flame-Book-Trilogy/dp/0578725312" target="_blank" rel="noopener">Houses of Sword and Flame</a></p>
       </div>
       <div class="foot-col foot-license">
-        <h2>License</h2>
-        <p><a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></p>
         <p><a href="https://github.com/dondo/music-book" target="_blank" rel="noopener">Source on GitHub</a></p>
         <p class="foot-version">Version <span data-version>dev</span></p>
       </div>
@@ -74,6 +73,14 @@
     <div class="busy" hidden></div>
     <div class="page-indicator"></div>
   </div>
+
+  <dialog id="sync-dialog">
+    <div class="settings-head">
+      <h2>Sync across devices</h2>
+      <button class="settings-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="settings-body"></div>
+  </dialog>
 
   <dialog id="settings">
     <div class="settings-head">
@@ -107,20 +114,22 @@
   <div id="drop-hint">Drop to add to library</div>
 
   <script src="vendor/pdfjs/pdf.min.js"></script>
-  <script src="js/version.js?v=f24765d"></script>
-  <script src="js/namespace.js?v=f24765d"></script>
-  <script src="js/library.js?v=f24765d"></script>
-  <script src="js/readers/pdf-reader.js?v=f24765d"></script>
-  <script src="js/readers/image-reader.js?v=f24765d"></script>
-  <script src="js/readers/index.js?v=f24765d"></script>
-  <script src="js/input/midi.js?v=f24765d"></script>
-  <script src="js/input/bindings.js?v=f24765d"></script>
-  <script src="js/layout.js?v=f24765d"></script>
-  <script src="js/annotate.js?v=f24765d"></script>
-  <script src="js/viewer.js?v=f24765d"></script>
-  <script src="js/theme.js?v=f24765d"></script>
-  <script src="js/settings-ui.js?v=f24765d"></script>
-  <script src="js/app.js?v=f24765d"></script>
+  <script src="js/version.js?v=243fba9"></script>
+  <script src="js/namespace.js?v=243fba9"></script>
+  <script src="js/library.js?v=243fba9"></script>
+  <script src="js/readers/pdf-reader.js?v=243fba9"></script>
+  <script src="js/readers/image-reader.js?v=243fba9"></script>
+  <script src="js/readers/index.js?v=243fba9"></script>
+  <script src="js/input/midi.js?v=243fba9"></script>
+  <script src="js/input/bindings.js?v=243fba9"></script>
+  <script src="js/layout.js?v=243fba9"></script>
+  <script src="js/annotate.js?v=243fba9"></script>
+  <script src="js/viewer.js?v=243fba9"></script>
+  <script src="js/theme.js?v=243fba9"></script>
+  <script src="js/sync.js?v=243fba9"></script>
+  <script src="js/sync-ui.js?v=243fba9"></script>
+  <script src="js/settings-ui.js?v=243fba9"></script>
+  <script src="js/app.js?v=243fba9"></script>
   <script>
     // local.js exists only on the author's machine (it is in .gitignore): if it loads, say so in the header and the tab title
     (function () {

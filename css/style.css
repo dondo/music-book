@@ -118,7 +118,7 @@ body.dragging #drop-hint { display: grid; }
 .page-indicator.show, #viewer:hover .viewer-title { opacity: 1; }
 
 /* ---------- settings ---------- */
-dialog#settings { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px;
+dialog#settings, dialog#sync-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px;
   width: min(560px, 94vw); max-height: 90vh; padding: 0; }
 dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .settings-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 0; }
@@ -330,3 +330,21 @@ html.is-local::before { content: ''; position: fixed; top: 0; left: 0; right: 0;
 /* closed: the original pen; open: the expand/collapse triangle */
 .ann-pencil-btn span { display: inline-flex; }
 .ann-bar:not(.mode-collapsed) .ann-pencil-btn .pen, .ann-bar.mode-collapsed .ann-pencil-btn .tri { display: none; }
+
+/* sync */
+#sync-btn { position: relative; }
+.sync-dot { position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: #3fb950; border: 2px solid var(--panel-2); box-sizing: content-box; }
+.sync-dot.busy { background: var(--accent); animation: syncpulse 1s ease-in-out infinite; }
+.sync-dot.err { background: var(--danger); }
+.sync-dot[hidden] { display: none; }
+@keyframes syncpulse { 50% { opacity: .35; } }
+.sync-field { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.sync-field input { font: inherit; color: var(--text); background: var(--inset); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+.sync-field small, .sync-muted { color: var(--muted); font-size: 13px; }
+.sync-secret { font: 15px ui-monospace, Menlo, monospace; background: var(--inset); padding: 3px 8px; border-radius: 6px; }
+.sync-k { min-width: 84px; color: var(--muted); }
+.sync-note { background: var(--inset); border-radius: 10px; padding: 10px 12px; margin: 10px 0; font-size: 14px; }
+.sync-note p { margin: 4px 0 0; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.sync-status { min-height: 1.4em; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.sync-status.err { color: var(--danger); }

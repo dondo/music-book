@@ -1051,4 +1051,13 @@ const libraryReady = libraryLoaded.then(backfillHashes);      // (hashing old pi
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+// ---- sync across devices ----
+// Synced changes refresh the library and the markings of the open piece; a signed-in device syncs at start-up.
+MB.Sync.onApplied(async res => {
+  try { await refreshLibrary(); } catch (e) { console.warn(e); }
+  const open = MB.viewer && MB.viewer.ann && MB.viewer.ann.anns;
+  if (open && res.annotations.includes(open.fileId)) { try { await MB.viewer.ann.reloadFrom(open.fileId); } catch (e) { console.warn(e); } }
+});
+libraryLoaded.then(() => MB.Sync.init());
 })();
