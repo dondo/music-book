@@ -404,6 +404,7 @@ class Annotator {
   _selectTool(t) {
     this._commitPending();
     this.tool = t; this.sel = null; this.nudgeOp = null;
+    this._clearHint();                                     // (wipes the selection outline Move drew)
     this._saveState();
     this._refresh();
   }
@@ -479,6 +480,7 @@ class Annotator {
     this.layer.classList.toggle('selected', !!this.sel);                    // Move cursor: pointing hand, then grab hand once something is selected
     this.layer.classList.toggle('dragging', !!(this.st && this.st.drag));
     this.layer.classList.toggle('fing', this.tool === 'fing');
+    if (this.tool !== 'move' || !this.sel) this.nudgers.hidden = true;     // the arrows belong to Move with something selected
     if (this.on && this.hint.width) this._clearHint();                     // redraw the Move indicators right away
   }
 
@@ -702,11 +704,12 @@ class Annotator {
     this.pop.style.top = `${Math.max(8, top)}px`;
     this.input.focus();
     this.input.select();
+    this._clearHint();                                     // draws the box where the number will go
   }
 
   _closePop() {
     this.pending = null;
-    if (!this.pop.hidden) { this.pop.hidden = true; this.input.blur(); }
+    if (!this.pop.hidden) { this.pop.hidden = true; this.input.blur(); this._clearHint(); }
   }
 
   _commitPending() {
@@ -737,6 +740,17 @@ class Annotator {
     const c = this.hint.getContext('2d');
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, this.hint.width, this.hint.height);
     if (this.on && this.tool === 'move' && this.anns && this.v.geom) this._drawMove(c);
+    if (this.pending && !this.pop.hidden && this.v.geom && this.v.view) {          // the fingering box stays where it was clicked while the number is chosen
+      const lr = this.layer.getBoundingClientRect(), vr = this.v.view.getBoundingClientRect(), pt = this.pending.pt;
+      c.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      this._drawFingBox(c, pt, vr.left - lr.left + pt.cx, vr.top - lr.top + pt.cy);
+    }
+  }
+  _drawFingBox(c, pt, X, Y) {                              // a box the size of one fingering character, centred on X, Y
+    const cs = this.v.scale, d = dAt(this.layout, pt.p, pt.y), bx = fingBox({ x: 0, y: 0, s: '1', d });
+    const w = (bx.x1 - bx.x0) * cs, h = (bx.y1 - bx.y0) * cs;
+    c.fillStyle = 'rgba(29,78,216,.10)'; c.fillRect(X - w / 2, Y - h / 2, w, h);
+    c.lineWidth = 1.5; c.strokeStyle = 'rgba(29,78,216,.9)'; c.strokeRect(X - w / 2, Y - h / 2, w, h);
   }
   overlay() { this._clearHint(); }                       // called after every repaint
 
@@ -1035,16 +1049,14 @@ class Annotator {
 
   _showHint(e, pt) {
     this._clearHint();
-    if (!this.on || !pt) return;
+    if (!this.on || !pt || (this.pending && !this.pop.hidden)) return;       // (while a fingering is being typed, its box stays put)
     const lr = this.layer.getBoundingClientRect(), dpr = window.devicePixelRatio || 1, cs = this.v.scale;
+    if (this.hint.width !== Math.round(lr.width * dpr) || this.hint.height !== Math.round(lr.height * dpr)) this._sizeHint();   // the screen changed size without a resize event (e.g. the iPad's toolbars): stretched previews would sit off the finger
     const c = this.hint.getContext('2d');
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     const X = e.clientX - lr.left, Y = e.clientY - lr.top;
     if (this.tool === 'fing') {                            // the pointer is a box the size of one fingering character
-      const d = dAt(this.layout, pt.p, pt.y), bx = fingBox({ x: 0, y: 0, s: '1', d });
-      const w = (bx.x1 - bx.x0) * cs, h = (bx.y1 - bx.y0) * cs;
-      c.fillStyle = 'rgba(29,78,216,.10)'; c.fillRect(X - w / 2, Y - h / 2, w, h);
-      c.lineWidth = 1.5; c.strokeStyle = 'rgba(29,78,216,.9)'; c.strokeRect(X - w / 2, Y - h / 2, w, h);
+      this._drawFingBox(c, pt, X, Y);
     } else if (this.tool === 'erase') {
       const r = ERASER[this.size].r * dAt(this.layout, pt.p, pt.y) * cs;
       c.lineWidth = 1.5; c.strokeStyle = 'rgba(220,40,40,.9)'; c.beginPath(); c.arc(X, Y, r, 0, Math.PI * 2); c.stroke();

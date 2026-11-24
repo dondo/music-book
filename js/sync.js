@@ -178,12 +178,15 @@ class Conflict extends Error {}
 async function attempt(d, st, say) {
   const now = Date.now();
   const { manifest, rev } = await pullManifest(d);
-  const R = { pieces: {}, folders: {}, orders: {}, files: {}, ann: {}, ...(manifest || {}) };
+  const R = { pieces: {}, folders: {}, orders: {}, files: {}, ann: {}, settings: null, ...(manifest || {}) };
   const snap = await MB.syncSnapshot();
   const base = (await MB.getMeta('syncbase')) || { ann: {} };
   const L = localRecords(snap);
 
   const mp = mergeMaps(L.pieces, R.pieces, now), mf = mergeMaps(L.folders, R.folders, now), mo = mergeMaps(L.orders, R.orders, now);
+  // settings: one record (a theme, bindings, ...) where the later change wins
+  const ls = MB.settingsSync.get(), LS = ls.u ? { settings: { u: ls.u, v: ls.v } } : {};
+  const ms = mergeMaps(LS, R.settings ? { settings: R.settings } : {}, now);
   const live = Object.values(mp.merged).filter(r => r.v);
   const refs = new Set(live.map(r => r.v.fileId || r.v.id));
   const haveLocal = new Set(snap.fileIds);
@@ -233,9 +236,9 @@ async function attempt(d, st, say) {
   // the index
   const out = {
     schema: SCHEMA, savedAt: now,
-    pieces: mp.merged, folders: mf.merged, orders: mo.merged, files, ann,
+    pieces: mp.merged, folders: mf.merged, orders: mo.merged, files, ann, settings: ms.merged.settings || null,
   };
-  const changed = mp.toRemote.length || mf.toRemote.length || mo.toRemote.length || uploadsAnn.length || up.length ||
+  const changed = ms.toRemote.length || mp.toRemote.length || mf.toRemote.length || mo.toRemote.length || uploadsAnn.length || up.length ||
     Object.keys(R.files).some(f => !files[f]) || !manifest;
   if (changed) {
     const r = await putObject(d, 'manifest', await sealJSON(d.key, out), { 'X-Rev': String(rev) });
@@ -282,6 +285,8 @@ async function attempt(d, st, say) {
   const nowOrders = await MB.loadOrders(), nowTimes = (await MB.getMeta('orderst')) || {};
   for (const k of Object.keys(nowTimes)) if ((nowTimes[k] || 0) !== (snap.orderTimes[k] || 0)) { orders[k] = nowOrders[k]; orderTimes[k] = nowTimes[k]; }
   const applied = await MB.syncCommit(plan);
+  const settingsIn = ms.toLocal.includes('settings') && ms.merged.settings && ls.u !== ms.merged.settings.u;
+  if (settingsIn) MB.settingsSync.apply(ms.merged.settings.v, ms.merged.settings.u);
   await MB.putMeta('syncbase', newBase);
   for (const id of applied.pieces) {                                // thumbnails are made here, not synced
     try {
@@ -294,7 +299,7 @@ async function attempt(d, st, say) {
       try { const thumb = await doc.thumbnail(360); if (thumb) await MB.setPieceThumb(id, thumb); } finally { doc.destroy?.(); }
     } catch (e) { console.warn('thumbnail failed', e); }
   }
-  return { applied, annotations: Object.keys(writeLocal).filter(f => applied.annotations.includes(f)), changedLocal: applied.pieces.length + applied.folders.length + applied.annotations.length || plan.orders && mo.toLocal.length };
+  return { applied, annotations: Object.keys(writeLocal).filter(f => applied.annotations.includes(f)), changedLocal: (settingsIn ? 1 : 0) + applied.pieces.length + applied.folders.length + applied.annotations.length || plan.orders && mo.toLocal.length };
 }
 
 // ---- the running service ----

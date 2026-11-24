@@ -45,7 +45,7 @@ function home() {
     const pw = el('code', 'sync-secret', '•••••••••');
     const tog = button('Show', () => { shown = !shown; pw.textContent = shown ? c.pass : '•••••••••'; tog.textContent = shown ? 'Hide' : 'Show'; });
     show(
-      el('p', '', 'Your library and your markings (including the score files) are kept in sync with your other devices.'),
+      el('p', '', 'Your library, your markings (including the score files) and your settings (appearance, page-turn pedals, auto-advance) are kept in sync with your other devices.'),
       row(el('span', 'sync-k', 'Name'), el('code', 'sync-secret', c.name)),
       row(el('span', 'sync-k', 'Passphrase'), pw, tog),
       el('p', 'sync-muted sync-last', ''),
@@ -55,7 +55,7 @@ function home() {
     return;
   }
   show(
-    el('p', '', 'Everything in Music Book is stored in this browser, on this device only. To use your library on another device (or keep a backup), you can store it, encrypted, in the cloud: your music, folders, their order and everything you have drawn on a score.'),
+    el('p', '', 'Everything in Music Book is stored in this browser, on this device only. To use your library on another device (or keep a backup), you can store it, encrypted, in the cloud: your music, folders, their order, everything you have drawn on a score, and your settings.'),
     el('p', 'sync-muted', 'It is encrypted on this device with a key made from your name and passphrase; nobody else can read it, and it is not shared with the Music Theory app.'),
     actions(button('Set up sync', createName, 'primary'), button('Connect to existing sync data', connect), button('Close', close)),
   );

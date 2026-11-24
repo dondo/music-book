@@ -20,26 +20,39 @@ const DEFAULTS = {
   autoAdvance: false,                      // turning past the last page continues into the next piece
   midiInputs: null,                        // null = all devices, else [deviceId...]
   midiBindings: {
-    next: [{ type: 'cc', number: 64 }],    // sustain pedal
-    prev: [{ type: 'cc', number: 67 }],    // soft pedal
+    next: [{ type: 'cc', number: 67 }],    // soft pedal
+    prev: [{ type: 'cc', number: 66 }],    // sostenuto pedal
     nextPiece: [],                         // unbound until you Learn them
     prevPiece: [],
   },
 };
+
+// Settings that are kept in step across devices (the MIDI input choice is left out: device ids differ from one device to the next).
+// `u` is the time of the last change to any of them.
+const proj = s => JSON.stringify([!!s.autoAdvance, !!s.hideExtras, s.midiBindings]);
+let lastProj = '';
 
 function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (raw) {
       const s = { ...DEFAULTS, ...raw, midiBindings: { ...DEFAULTS.midiBindings, ...(raw.midiBindings || {}) } };
+      // bindings still at the old defaults (sustain = next, soft = previous) move to the new ones; anything you changed is kept
+      const only = (a, n) => Array.isArray(a) && a.length === 1 && a[0].type === 'cc' && a[0].number === n;
+      if (only(raw.midiBindings?.next, 64) && only(raw.midiBindings?.prev, 67)) { s.midiBindings.next = DEFAULTS.midiBindings.next; s.midiBindings.prev = DEFAULTS.midiBindings.prev; }
       for (const k of Object.keys(s.midiBindings)) if (!(k in DEFAULTS.midiBindings)) delete s.midiBindings[k];   // actions that no longer exist (zoom, headers/footers)
+      lastProj = proj(s);
       return s;
     }
   } catch {}
-  return structuredClone(DEFAULTS);
+  const d = structuredClone(DEFAULTS); lastProj = proj(d);
+  return d;
 }
 
-function saveSettings(s) {
+function saveSettings(s, fromSync = false) {
+  const p = proj(s);
+  if (!fromSync && p !== lastProj) { s.u = Date.now(); MB.notifyChange?.('settings'); }      // something that is synced changed
+  lastProj = p;
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
 }
 

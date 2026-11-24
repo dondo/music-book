@@ -376,7 +376,7 @@ async function requestPersistence() {
 }
 
 Object.assign(MB, {
-  listPieces, getPiece, getFile, getLayout, putLayout, getAnnotations, putAnnotations, addPiece, addLink, updatePiece, deletePiece, trashPiece, restorePiece, trashFolder, restoreFolder, deleteFolderForever, setPieceFolder, reorderPieces, loadOrders, getMeta, putMeta, deleteMeta, onChange, syncSnapshot, syncCommit, putFileBlob, setPieceThumb,
+  listPieces, getPiece, getFile, getLayout, putLayout, getAnnotations, putAnnotations, addPiece, addLink, updatePiece, deletePiece, trashPiece, restorePiece, trashFolder, restoreFolder, deleteFolderForever, setPieceFolder, reorderPieces, loadOrders, getMeta, putMeta, deleteMeta, onChange, notifyChange: notify, syncSnapshot, syncCommit, putFileBlob, setPieceThumb,
   listFolders, addFolder, updateFolder, deleteFolder, requestPersistence,
 });
 // every change to the library or the markings is announced (sync listens)

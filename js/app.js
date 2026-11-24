@@ -47,6 +47,16 @@ $('#formats').textContent = supportedNames();
 // ---------- input wiring ----------
 const settings = loadSettings();
 const midi = new MidiInput();
+// The settings that are synced across devices (see sync.js): read as one record, or replaced by a newer one from another device.
+MB.settingsSync = {
+  get: () => ({ u: Math.max(settings.u || 0, MB.getThemeU()), v: { theme: MB.getTheme(), autoAdvance: !!settings.autoAdvance, hideExtras: !!settings.hideExtras, midiBindings: structuredClone(settings.midiBindings) } }),
+  apply(v, u) {
+    if (v.theme && v.theme !== MB.getTheme()) MB.applyTheme(v.theme, u);
+    settings.autoAdvance = !!v.autoAdvance; settings.hideExtras = !!v.hideExtras;
+    if (v.midiBindings) settings.midiBindings = structuredClone(v.midiBindings);
+    settings.u = u; saveSettings(settings, true);
+  },
+};
 midi.enabled = settings.midiInputs;
 const bindings = new Bindings(midi, settings);
 const settingsUI = new SettingsUI($('#settings'), midi, bindings);

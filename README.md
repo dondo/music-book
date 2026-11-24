@@ -13,7 +13,7 @@ No server or build: open `index.html` in Chrome (works from file://), or publish
 - `js/layout.js` – finds the staves/systems on each page and the blank rows where a page can safely be cut, then packs whole systems onto screens (see Resizing)
 - `js/readers/` – **format readers**. `index.js` documents the interface and holds the registry (add `<script>` tags in index.html and sw.js for new files); `pdf-reader.js` (pdf.js 3.11 classic build, vendored in `vendor/pdfjs`; v3 is used because newer pdf.js is ES-module-only and won't load from file://), `image-reader.js` (png/jpg/webp). Add a format = new file + one line in `READERS`.
 - `js/input/midi.js` – Web MIDI device manager (selectable inputs)
-- `js/input/bindings.js` – action bindings + "Learn"; defaults: sustain pedal (CC64) = next, soft pedal (CC67) = previous
+- `js/input/bindings.js` – action bindings + "Learn"; defaults: soft pedal (CC67) = next page, sostenuto pedal (CC66) = previous page
 - `js/settings-ui.js` – ⚙ dialog: pick MIDI inputs, learn pedals/keys, live MIDI monitor
 - `sw.js` – offline app-shell cache (bump `VERSION` when files change)
 
