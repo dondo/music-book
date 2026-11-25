@@ -284,21 +284,20 @@ button.danger { color: var(--danger); border-color: rgba(255, 123, 114, .5); }
 .ann-nudgers button:active { background: rgba(0, 183, 255, .18); }
 
 /* footer (as in the study app) */
-.foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-top: auto; padding-top: 16px;
+.foot { display: grid; grid-template-columns: 1fr auto; column-gap: 24px; align-items: baseline; margin-top: auto; padding-top: 16px;
   border-top: 1px solid var(--panel-2); color: var(--muted); font-size: 0.82rem; }
-.foot-col { max-width: 44ch; }
-.foot-license { text-align: right; flex: 0 0 auto; }
-.foot h2 { margin: 0 0 4px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: .85; }
-.foot p { margin: 0 0 4px; }
-.foot-license p + p { margin-top: 16px; }
+.foot h2 { grid-column: 1 / -1; margin: 0 0 4px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: .85; }
+.foot p { margin: 0 0 12px; }
+.foot .foot-credit { grid-column: 1; grid-row: 2; }
+.foot .foot-studying { grid-column: 1; grid-row: 3; }
+.foot .foot-right { grid-column: 2; grid-row: 2 / 4; align-self: end; text-align: right; margin-bottom: 12px; }
+.foot .foot-right p { margin: 0; }
 .foot a { color: inherit; }
-@media (max-width: 560px) { .foot { flex-direction: column; } .foot-license { text-align: left; } }
+@media (max-width: 560px) { .foot { grid-template-columns: 1fr; } .foot .foot-credit, .foot .foot-studying, .foot .foot-right { grid-column: 1; grid-row: auto; text-align: left; } }
 #library > :not(footer) + footer, #library > footer { flex: 0 0 auto; }
 #library > #grid, #library > #list { margin-bottom: 40px; }
 #trash-btn.empty { display: none; }
 body.piece-dragging #trash-btn.empty { display: block; opacity: .85; }
-.foot-license p + p { margin-top: 4px; }
-.foot-license .foot-version { margin-top: 16px; }
 
 /* LOCAL copy marker (shown only when local.js is present) */
 .local-badge { margin-left: 0.6rem; padding: 0.15rem 0.6rem; border-radius: 999px; background: #ea580c; color: #fff; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; vertical-align: middle; }
