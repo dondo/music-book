@@ -2,6 +2,8 @@
 
 Vanilla HTML/CSS/JS PWA (no build step). Upload sheet music into a library, open a piece, and turn pages with MIDI pedals/keys.
 
+This application is entirely vibe-coded, including this documentation. If you're interested in documentation about how to use this app, take a look at the [real documentation](https://dondo.org/sheet-music-app/). [note: coming soon]
+
 ## Run
 No server or build: open `index.html` in Chrome (works from file://), or publish the folder to GitHub Pages (https://dondo.github.io/music-book/). All code is plain `<script>` tags sharing one `MB` namespace (load order is in index.html) so file:// works; the service worker only registers on http(s).
 
